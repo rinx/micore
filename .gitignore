@@ -1,6 +1,7 @@
 *
 
 !Makefile
+!README.md
 !LICENSE
 !*.f90
 !.gitignore
