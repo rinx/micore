@@ -1,8 +1,8 @@
 .SUFFIXES :
 .SUFFIXES : .F90 .f90 .f .o
 
-TARGETS = retrieval
-RET_SRCS = lib_retrieval.f90 retrieval.f90
+TARGETS = micore
+RET_SRCS = micore_core.f90 micore_main.f90
 RET_OBJS = $(RET_SRCS:.f90=.o)
 
 FC = gfortran
@@ -13,13 +13,12 @@ all: $(TARGETS)
 .f90.o :
 	$(FC) -c $< $(FCFLAGS)
 
-retrieval : $(RET_OBJS)
-	$(FC) -o retrieval $^ $(FCFLAGS)
+micore : $(RET_OBJS)
+	$(FC) -o micore $^ $(FCFLAGS)
 
 
-retrieval.o : lib_retrieval.o
-lib_retrieval.o : 
-
+micore_main.o : micore_core.o
+micore_core.o : 
 
 clean:
 	rm -f *.o *.mod $(TARGETS) *~
