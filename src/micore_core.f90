@@ -32,6 +32,8 @@ module micore_core
 
   ! threshold value for convergence of cost function
   real(R_), parameter :: threshold = 0.05_R_
+  ! max # of iteration
+  integer, parameter :: max_iter = 9999
 
 contains
   ! get commandline arguments
@@ -272,6 +274,7 @@ contains
     real(R_) :: est_ref(2) ! estimated reflectances
     real(R_) :: cps(2) ! cloud physical parameters
     real(R_) :: prev_cost
+    integer :: i
 
     ! initialization
     call separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
@@ -285,7 +288,9 @@ contains
     stop
 
     ! main loop of optimal estimation
-    do
+    do i = 1, max_iter
+      if (verbose_flag) write (*,*) "# iterate step: ", i
+
       est_ref = estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, tau, cder)
       if (verbose_flag) then
         write (*,*) "# estimated REF1: ", est_ref(1)
@@ -303,7 +308,6 @@ contains
         write (*,*) "# estimated TAU:  ", cps(1)
         write (*,*) "# estimated CDER: ", cps(2)
       end if
-
     end do
 
     tau  = cps(1)
