@@ -10,6 +10,13 @@ by using look-up table (Nakajima and King, 1990) and Gauss-Newton method.
 Cloud Optical Retrieval Code
 ---
 
+### Usage
+
+    $ micore [lutfile] [reflectance1] [reflectance2]
+
+like following:
+
+    $ micore lut_860_2130.bin 0.553 0.343
 
 
 Look-up table
@@ -33,4 +40,6 @@ ex.)
 | ... | ...  | ...  | ...  |
 | ... | ...  | ...  | ...  |
 
+
+This file should be given as a binary format.
 
