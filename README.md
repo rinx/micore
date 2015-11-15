@@ -10,6 +10,15 @@ by using look-up table (Nakajima and King, 1990) and Gauss-Newton method.
 Cloud Optical Retrieval Code
 ---
 
+### Installation
+
+Just execute `make` command in `src` directory.
+
+    $ cd src
+    $ make
+
+You can change your compiler setting in the `Makefile` (The default compiler is `gfortran`).
+
 ### Usage
 
     $ micore [lutfile] [reflectance1] [reflectance2]
