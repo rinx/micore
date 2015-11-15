@@ -6,4 +6,6 @@
 !src
 !src/*.f90
 !.gitignore
+!example
+!example/*
 

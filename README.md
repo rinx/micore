@@ -21,11 +21,11 @@ You can change your compiler setting in the `Makefile` (The default compiler is 
 
 ### Usage
 
-    $ micore [lutfile] [reflectance1] [reflectance2]
+    $ ./micore [lutfile] [reflectance1] [reflectance2]
 
 like following:
 
-    $ micore lut_860_2130.bin 0.553 0.343
+    $ ./micore ../example/lut_860_2130.bin 0.553 0.343
 
 
 Look-up table
