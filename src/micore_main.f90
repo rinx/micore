@@ -2,12 +2,15 @@
 ! MICO-RE
 !   [Minimal Implementation of Cloud Optical Retrieval]
 !
-! lib: micore_main.f90
+! micore_main.f90
 !
 ! Author: Rintaro Okamura
 !
 ! Description:
 !   An interface of MICO-RE cloud optical retrieval code
+!
+! Dependency:
+!   micore_core.f90
 !
 ! ChangeLog
 !   201511xx : First Version

@@ -2,7 +2,7 @@
 ! MICO-RE
 !   [Minimal Implementation of Cloud Optical Retrieval]
 !
-! lib: micore_core.f90
+! micore_core.f90
 !
 ! Author: Rintaro Okamura
 !
@@ -20,7 +20,6 @@ module micore_core
 
   public :: R_, RD_, R4_, verbose_flag
   public :: get_cmd_args
-  public :: akima_coefs
   public :: micore_retrieval
 
   ! based on HPARX library
@@ -272,6 +271,7 @@ contains
     real(R_) :: tau_arr(size(lut,1)), cder_arr(size(lut, 1)) ! tau and cder in lut
     real(R_) :: est_ref(2) ! estimated reflectances
     real(R_) :: cps(2) ! cloud physical parameters
+    real(R_) :: prev_cost
 
     ! initialization
     call separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
@@ -293,7 +293,7 @@ contains
       end if
 
       cost_res = cost_func(obs_ref, est_ref)
-      if (cost_res < threshold) exit
+      if (cost_res < threshold .or. (prev_cost - cost_res) < threshold) exit
       if (verbose_flag) then
         write (*,*) "# COST: ", cost_res
       end if
