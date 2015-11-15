@@ -3,6 +3,7 @@
 !Makefile
 !README.md
 !LICENSE
-!*.f90
+!src
+!src/*.f90
 !.gitignore
 
