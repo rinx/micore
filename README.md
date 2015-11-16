@@ -25,7 +25,7 @@ You can change your compiler setting in the `Makefile` (The default compiler is 
 
 like following:
 
-    $ ./micore ../example/lut_860_2130.bin 0.553 0.343
+    $ ./micore ../example/lut_860_2160.bin 0.553 0.343
 
 
 Look-up table
