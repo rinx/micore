@@ -134,6 +134,54 @@ contains
     end if
   end subroutine grid_idx_loc
 
+  ! simple insert sort
+  function insert_sort(dat)
+    real(R_) :: dat(:)
+    real(R_), allocatable :: insert_sort(:)
+    real(R_) :: tmp
+    integer  :: i, j
+
+    do i = 2, size(dat)
+      tmp = dat(i)
+      if (dat(i-1) > tmp) then
+        j = i
+        do
+          dat(j) = dat(j-1)
+          j = j - 1
+          if (j < 1 .or. dat(j-1) <= tmp) exit
+        end do
+        dat(j) = tmp
+      end if
+    end do
+
+    allocate (insert_sort(size(dat)))
+    insert_sort(:) = dat(:)
+  end function insert_sort
+
+  ! select unique elements from array
+  function select_uniq_elems(dat)
+    real(R_) :: dat(:)
+    real(R_), allocatable :: select_uniq_elems(:)
+    integer :: i, cnt
+
+    dat(:) = insert_sort(dat(:))
+    cnt = 1
+    do i = 2, size(dat)
+      if (dat(i-1) /= dat(i)) then
+        cnt = cnt + 1
+      end if
+    end do
+    allocate (select_uniq_elems(cnt))
+    cnt = 1
+    select_uniq_elems(1) = dat(1)
+    do i = 2, size(dat)
+      if (select_uniq_elems(cnt) /= dat(i)) then
+        cnt = cnt + 1
+        select_uniq_elems(cnt) = dat(i)
+      end if
+    end do
+  end function select_uniq_elems
+
   ! get coefficients of akima interpolation
   !   y = y0 + c1*x + c2*x^2 + c3*x^3
   !   this code is based on HPARX library
@@ -192,6 +240,17 @@ contains
     y = ytab(ix) + ax * (c1 + ax * (c2 + ax * c3))
   end subroutine akima_coefs
 
+  ! easy alias for akima_coefs
+  function akima_intp(xtab, ytab, x)
+    real(R_) :: xtab(:)
+    real(R_) :: ytab(:)
+    real(R_) :: x
+    real(R_) :: akima_intp
+    real(R_) :: c1, c2, c3
+
+    call akima_coefs(xtab, ytab, x, akima_intp, c1, c2, c3)
+  end function akima_intp
+
   ! separate look-up table into several vectors
   subroutine separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
     real(R_), intent(in)  :: lut(:,:)
@@ -229,9 +288,49 @@ contains
     real(R_), intent(in)  :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
     real(R_), intent(in)  :: tau, cder
     real(R_) :: estimate_refs(2)
+    real(R_), allocatable :: unq_tau(:), unq_cder(:) ! unique tau and cder
+    real(R_) :: intp_tau(5), intp_cder(5)
+    real(R_) :: tmp_ref1(5), tmp_ref2(5)
+    real(R_) :: tmp_ref(5,2)
+    real(R_) :: rat
+    integer  :: i, j, itau, icder
 
-    estimate_refs(1) = 0.0
-    estimate_refs(2) = 0.0
+    ! extract unique values
+    allocate (unq_tau(size(select_uniq_elems(tau_arr))))
+    allocate (unq_cder(size(select_uniq_elems(cder_arr))))
+    unq_tau(:)  = select_uniq_elems(tau_arr(:))
+    unq_cder(:) = select_uniq_elems(cder_arr(:))
+
+    ! select nearest 16-points
+    ! はじっこの場合について考慮必要
+    call grid_idx_loc(unq_tau, tau, itau, rat)
+    intp_tau(1) = unq_tau(itau)
+    intp_tau(2) = unq_tau(itau+1)
+    intp_tau(3) = unq_tau(itau+2)
+    intp_tau(4) = unq_tau(itau+3)
+    intp_tau(5) = unq_tau(itau+4)
+
+    call grid_idx_loc(unq_cder, cder, icder, rat)
+    intp_cder(1) = unq_cder(icder-1)
+    intp_cder(2) = unq_cder(icder)
+    intp_cder(3) = unq_cder(icder+1)
+    intp_cder(4) = unq_cder(icder+2)
+    intp_cder(5) = unq_cder(icder+3)
+
+    ! interpolation with CDER
+    do i = 1, 5
+      do j = 1, 5
+        tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+i-2) + (icder+j-2))
+        tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+i-2) + (icder+j-2))
+      end do
+      tmp_ref(i,1) = akima_intp(intp_cder, tmp_ref1, cder)
+      tmp_ref(i,2) = akima_intp(intp_cder, tmp_ref2, cder)
+    end do
+
+    ! interpolation with TAU
+    estimate_refs(1) = akima_intp(intp_tau, tmp_ref(:,1), tau)
+    estimate_refs(2) = akima_intp(intp_tau, tmp_ref(:,2), tau)
+    deallocate (unq_tau, unq_cder)
   end function estimate_refs
 
   ! cost function J
@@ -285,17 +384,17 @@ contains
       write (*,*) "# 1st-estimated CDER: ", cps(2)
     end if
 
-    stop
-
     ! main loop of optimal estimation
     do i = 1, max_iter
       if (verbose_flag) write (*,*) "# iterate step: ", i
 
-      est_ref = estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, tau, cder)
+      est_ref = estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, cps(1), cps(2))
       if (verbose_flag) then
         write (*,*) "# estimated REF1: ", est_ref(1)
         write (*,*) "# estimated REF2: ", est_ref(2)
       end if
+
+      stop
 
       cost_res = cost_func(obs_ref, est_ref)
       if (cost_res < threshold .or. (prev_cost - cost_res) < threshold) exit
