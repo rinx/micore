@@ -218,7 +218,7 @@ contains
 
     call grid_idx_loc(xtab, x, ix, ax)
 
-    !Trapezoidal difference
+    ! Trapezoidal difference
     if (ix >= 3 .and. ix <= nx - 3) then
        d(-2:2) = (ytab(ix-1:ix+3) - ytab(ix-2:ix+2)) / (xtab(ix-1:ix+3) - xtab(ix-2:ix+2))
     else if (ix <= 2) then
@@ -323,13 +323,12 @@ contains
     unq_cder(:) = select_uniq_elems(cder_arr(:))
 
     ! select nearest 25-points
-    ! はじっこの場合について考慮必要
     call grid_idx_loc(unq_tau, tau, itau, rat)
-    intp_tau(1) = unq_tau(itau)
-    intp_tau(2) = unq_tau(itau+1)
-    intp_tau(3) = unq_tau(itau+2)
-    intp_tau(4) = unq_tau(itau+3)
-    intp_tau(5) = unq_tau(itau+4)
+    intp_tau(1) = unq_tau(itau-1)
+    intp_tau(2) = unq_tau(itau)
+    intp_tau(3) = unq_tau(itau+1)
+    intp_tau(4) = unq_tau(itau+2)
+    intp_tau(5) = unq_tau(itau+3)
 
     call grid_idx_loc(unq_cder, cder, icder, rat)
     intp_cder(1) = unq_cder(icder-1)
