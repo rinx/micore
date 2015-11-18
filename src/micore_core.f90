@@ -31,7 +31,8 @@ module micore_core
   logical, parameter :: verbose_flag = .true.
 
   ! threshold value for convergence of cost function
-  real(R_), parameter :: threshold = 0.05_R_
+  real(R_), parameter :: threshold = 0.00005_R_
+  real(R_), parameter :: diff_thre = 0.00003_R_
   ! max # of iteration
   integer, parameter :: max_iter = 9999
 
@@ -182,6 +183,25 @@ contains
     end do
   end function select_uniq_elems
 
+  ! get inverse matrix for 2x2 matrix
+  ! if there's no inverse matrix, it will return -9999.9 matrix
+  function get_inv_matrix(mat)
+    real(R_) :: mat(2,2)
+    real(R_) :: get_inv_matrix(2,2)
+    real(R_) :: tmp
+
+    tmp = mat(1,1) * mat(2,2) - mat(1,2) * mat(2,1)
+
+    if (tmp /= 0.0) then
+      get_inv_matrix(1,1) =   mat(2,2) / tmp
+      get_inv_matrix(1,2) = - mat(1,2) / tmp
+      get_inv_matrix(2,1) = - mat(2,1) / tmp
+      get_inv_matrix(2,2) =   mat(2,2) / tmp
+    else
+      get_inv_matrix(:,:) = -9999.9
+    endif
+  end function get_inv_matrix
+
   ! get coefficients of akima interpolation
   !   y = y0 + c1*x + c2*x^2 + c3*x^3
   !   this code is based on HPARX library
@@ -270,9 +290,9 @@ contains
 
   ! estimate initial tau and cder by least square method
   function estimate_initial_values(lut_refs1, lut_refs2, tau_arr, cder_arr, obs_ref)
-    real(R_), intent(in)  :: lut_refs1(:), lut_refs2(:) ! reflectances of lut
-    real(R_), intent(in)  :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
-    real(R_), intent(in)  :: obs_ref(:)
+    real(R_) :: lut_refs1(:), lut_refs2(:) ! reflectances of lut
+    real(R_) :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
+    real(R_) :: obs_ref(:)
     real(R_) :: estimate_initial_values(2)
     integer :: minind
 
@@ -283,11 +303,12 @@ contains
   end function estimate_initial_values
 
   ! estimate reflectances from cloud properties by using look-up table
-  function estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, tau, cder)
+  subroutine estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, tau, cder, est_refs, akic)
     real(R_), intent(in)  :: lut_refs1(:), lut_refs2(:) ! reflectances of lut
     real(R_), intent(in)  :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
     real(R_), intent(in)  :: tau, cder
-    real(R_) :: estimate_refs(2)
+    real(R_), intent(out) :: est_refs(2)
+    real(R_), intent(out) :: akic(12) ! an array of akima coefficients
     real(R_), allocatable :: unq_tau(:), unq_cder(:) ! unique tau and cder
     real(R_) :: intp_tau(5), intp_cder(5)
     real(R_) :: tmp_ref1(5), tmp_ref2(5)
@@ -301,7 +322,7 @@ contains
     unq_tau(:)  = select_uniq_elems(tau_arr(:))
     unq_cder(:) = select_uniq_elems(cder_arr(:))
 
-    ! select nearest 16-points
+    ! select nearest 25-points
     ! はじっこの場合について考慮必要
     call grid_idx_loc(unq_tau, tau, itau, rat)
     intp_tau(1) = unq_tau(itau)
@@ -328,28 +349,55 @@ contains
     end do
 
     ! interpolation with TAU
-    estimate_refs(1) = akima_intp(intp_tau, tmp_ref(:,1), tau)
-    estimate_refs(2) = akima_intp(intp_tau, tmp_ref(:,2), tau)
+    call akima_coefs(intp_tau, tmp_ref(:,1), tau, est_refs(1), akic(1), akic(2), akic(3))
+    call akima_coefs(intp_tau, tmp_ref(:,2), tau, est_refs(2), akic(4), akic(5), akic(6))
+
+    ! interpolation with TAU
+    do i = 1, 5
+      do j = 1, 5
+        tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+j-2) + (icder+i-2))
+        tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+j-2) + (icder+i-2))
+      end do
+      tmp_ref(i,1) = akima_intp(intp_tau, tmp_ref1, tau)
+      tmp_ref(i,2) = akima_intp(intp_tau, tmp_ref2, tau)
+    end do
+
+    ! interpolation with CDER
+    ! tmp_ref1 is for dummy
+    call akima_coefs(intp_cder, tmp_ref(:,1), cder, tmp_ref1(1), akic(7), akic(8), akic(9))
+    call akima_coefs(intp_cder, tmp_ref(:,2), cder, tmp_ref1(2), akic(10), akic(11), akic(12))
     deallocate (unq_tau, unq_cder)
-  end function estimate_refs
+  end subroutine estimate_refs
 
   ! cost function J
   !   J = (R_obs1 - R_est1)^2 + (R_obs2 - R_est2)^2
   function cost_func(obs_ref, est_ref)
-    real(R_), intent(in) :: obs_ref(:)
-    real(R_), intent(in) :: est_ref(:)
+    real(R_) :: obs_ref(:)
+    real(R_) :: est_ref(:)
     real(R_) :: cost_func
 
-    cost_func = (obs_ref(1) - est_ref(1))**2 - (obs_ref(2) - est_ref(2))**2
+    cost_func = (obs_ref(1) - est_ref(1))**2 + (obs_ref(2) - est_ref(2))**2
   end function cost_func
 
   ! update cloud properties
-  function update_cloud_properties(tau, cder)
-    real(R_), intent(in) :: tau, cder
+  function update_cloud_properties(obs_ref, est_ref, cps, akic)
+    real(R_) :: obs_ref(2), est_ref(2)
+    real(R_) :: cps(2)
+    real(R_) :: akic(12)
     real(R_) :: update_cloud_properties(2)
+    real(R_) :: k(2,2) ! Jacobian matrix
+    real(R_) :: refdiff_vec(2) ! difference vector of reflectances
 
-    update_cloud_properties(1) = tau
-    update_cloud_properties(2) = cder
+    ! Jacobian matrix
+    k(1,1) = akic(1)  + cps(1) * (2 * akic(2)  + cps(1) * 3 * akic(3))  ! (dR_1)/(dtau) at tau = tau_i
+    k(1,2) = akic(7)  + cps(2) * (2 * akic(8)  + cps(2) * 3 * akic(9))  ! (dR_1)/(dre)  at re  = re_i
+    k(2,1) = akic(4)  + cps(1) * (2 * akic(5)  + cps(1) * 3 * akic(6))  ! (dR_2)/(dtau) at tau = tau_i
+    k(2,2) = akic(10) + cps(2) * (2 * akic(11) + cps(2) * 3 * akic(12)) ! (dR_2)/(dre)  at re  = re_i
+
+    refdiff_vec(:) = obs_ref(:) - est_ref(:)
+
+    update_cloud_properties(:) = cps(:) + &
+      matmul(get_inv_matrix(matmul(transpose(k), k)), matmul(transpose(k), refdiff_vec))
   end function update_cloud_properties
 
   ! main routine of retrieval code
@@ -372,41 +420,39 @@ contains
     real(R_) :: tau_arr(size(lut,1)), cder_arr(size(lut, 1)) ! tau and cder in lut
     real(R_) :: est_ref(2) ! estimated reflectances
     real(R_) :: cps(2) ! cloud physical parameters
-    real(R_) :: prev_cost
+    real(R_) :: akic(12) ! an array of akima coefficients
+    real(R_) :: prev_cost = 100.0_R_
     integer :: i
 
     ! initialization
     call separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
     cps = estimate_initial_values(lut_refs1, lut_refs2, tau_arr, cder_arr, obs_ref)
 
-    if (verbose_flag) then
-      write (*,*) "# 1st-estimated TAU:  ", cps(1)
-      write (*,*) "# 1st-estimated CDER: ", cps(2)
-    end if
-
     ! main loop of optimal estimation
     do i = 1, max_iter
       if (verbose_flag) write (*,*) "# iterate step: ", i
 
-      est_ref = estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, cps(1), cps(2))
-      if (verbose_flag) then
-        write (*,*) "# estimated REF1: ", est_ref(1)
-        write (*,*) "# estimated REF2: ", est_ref(2)
-      end if
-
-      stop
-
-      cost_res = cost_func(obs_ref, est_ref)
-      if (cost_res < threshold .or. (prev_cost - cost_res) < threshold) exit
-      if (verbose_flag) then
-        write (*,*) "# COST: ", cost_res
-      end if
-
-      cps = update_cloud_properties(cps(1), cps(2))
       if (verbose_flag) then
         write (*,*) "# estimated TAU:  ", cps(1)
         write (*,*) "# estimated CDER: ", cps(2)
       end if
+
+      call estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, cps(1), cps(2), est_ref, akic)
+      if (verbose_flag) then
+        write (*,*) "# observed  REF1: ", obs_ref(1)
+        write (*,*) "# observed  REF2: ", obs_ref(2)
+        write (*,*) "# estimated REF1: ", est_ref(1)
+        write (*,*) "# estimated REF2: ", est_ref(2)
+      end if
+
+      cost_res = cost_func(obs_ref, est_ref)
+      if (verbose_flag) then
+        write (*,*) "# COST: ", cost_res
+      end if
+      if (cost_res < threshold .or. abs(prev_cost - cost_res) < diff_thre) exit
+      prev_cost = cost_res
+
+      cps = update_cloud_properties(obs_ref, est_ref, cps, akic)
     end do
 
     tau  = cps(1)
