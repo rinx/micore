@@ -8,4 +8,8 @@
 !.gitignore
 !example
 !example/*
+!utils
+!utils/plot
+!utils/plot/lut_plot.rb
+
 

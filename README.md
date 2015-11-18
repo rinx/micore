@@ -34,7 +34,7 @@ Look-up table used in this program should be like following:
 
 ex.)
 
-| COT | CDER | R1   | R2   |
+| COT | CDER | REF1 | REF2 |
 |:----|:-----|:-----|:-----|
 | 1.0 | 3.0  | 0.20 | 0.10 |
 | 1.0 | 5.0  | 0.20 | 0.13 |
@@ -53,8 +53,17 @@ ex.)
 This file should be given as a binary format.
 
 
+Utils
+---
+
+* lut\_plot.rb
+
+make a Nakajima-King-like plot of the look-up table.
+
+
 References
 ---
 
 * [Teruyuki Nakajima and Michael D. King, 1990: Determination of the Optical Thickness and Effective Particle Radius of Clouds from Reflected Solar Radiation Measurements. Part I: Theory. J. Atmos. Sci., 47, 1878–1893.](http://journals.ametsoc.org/doi/abs/10.1175/1520-0469(1990)047%3C1878%3ADOTOTA%3E2.0.CO%3B2)
+* [Hiroshi Akima, 1970: A new method of interpolation and smooth curve fitting based on local procedures. JACM, 17.4, 589–602.](http://dl.acm.org/citation.cfm?id=321609)
 
