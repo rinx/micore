@@ -10,7 +10,7 @@
 !   main routine and libraries of MICO-RE cloud optical retrieval code
 !
 ! ChangeLog
-!   201511xx : First Version
+!   20151118 : First Version
 !
 
 
@@ -31,8 +31,8 @@ module micore_core
   logical, parameter :: verbose_flag = .true.
 
   ! threshold value for convergence of cost function
-  real(R_), parameter :: threshold = 0.00005_R_
-  real(R_), parameter :: diff_thre = 0.00003_R_
+  real(R_), parameter :: threshold = 0.00001_R_
+  real(R_), parameter :: diff_thre = 0.0000001_R_
   ! max # of iteration
   integer, parameter :: max_iter = 9999
 
@@ -198,7 +198,8 @@ contains
       get_inv_matrix(2,1) = - mat(2,1) / tmp
       get_inv_matrix(2,2) =   mat(2,2) / tmp
     else
-      get_inv_matrix(:,:) = -9999.9
+      write (*,*), "There's no inverse matrix."
+      stop
     endif
   end function get_inv_matrix
 
@@ -216,7 +217,7 @@ contains
 
     nx = size(ytab)
 
-    call grid_idx_loc(xtab, x, ix, ax)
+    call grid_idx_loc(xtab, x, ix, ax, 1)
 
     ! Trapezoidal difference
     if (ix >= 3 .and. ix <= nx - 3) then
@@ -310,11 +311,9 @@ contains
     real(R_), intent(out) :: est_refs(2)
     real(R_), intent(out) :: akic(12) ! an array of akima coefficients
     real(R_), allocatable :: unq_tau(:), unq_cder(:) ! unique tau and cder
-    real(R_) :: intp_tau(5), intp_cder(5)
-    real(R_) :: tmp_ref1(5), tmp_ref2(5)
-    real(R_) :: tmp_ref(5,2)
-    real(R_) :: rat
-    integer  :: i, j, itau, icder
+    real(R_), allocatable :: tmp_ref1(:), tmp_ref2(:)
+    real(R_), allocatable :: tmp_ref(:,:)
+    integer  :: i, j
 
     ! extract unique values
     allocate (unq_tau(size(select_uniq_elems(tau_arr))))
@@ -322,50 +321,44 @@ contains
     unq_tau(:)  = select_uniq_elems(tau_arr(:))
     unq_cder(:) = select_uniq_elems(cder_arr(:))
 
-    ! select nearest 25-points
-    call grid_idx_loc(unq_tau, tau, itau, rat)
-    intp_tau(1) = unq_tau(itau-1)
-    intp_tau(2) = unq_tau(itau)
-    intp_tau(3) = unq_tau(itau+1)
-    intp_tau(4) = unq_tau(itau+2)
-    intp_tau(5) = unq_tau(itau+3)
-
-    call grid_idx_loc(unq_cder, cder, icder, rat)
-    intp_cder(1) = unq_cder(icder-1)
-    intp_cder(2) = unq_cder(icder)
-    intp_cder(3) = unq_cder(icder+1)
-    intp_cder(4) = unq_cder(icder+2)
-    intp_cder(5) = unq_cder(icder+3)
+    allocate(tmp_ref1(size(unq_cder)), tmp_ref2(size(unq_cder)))
+    allocate(tmp_ref(size(unq_tau),2))
 
     ! interpolation with CDER
-    do i = 1, 5
-      do j = 1, 5
-        tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+i-2) + (icder+j-2))
-        tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+i-2) + (icder+j-2))
+    do i = 1, size(unq_tau)
+      do j = 1, size(unq_cder)
+        tmp_ref1(j) = lut_refs1(size(unq_cder) * (i-1) + j)
+        tmp_ref2(j) = lut_refs2(size(unq_cder) * (i-1) + j)
       end do
-      tmp_ref(i,1) = akima_intp(intp_cder, tmp_ref1, cder)
-      tmp_ref(i,2) = akima_intp(intp_cder, tmp_ref2, cder)
+      tmp_ref(i,1) = akima_intp(unq_cder, tmp_ref1, cder)
+      tmp_ref(i,2) = akima_intp(unq_cder, tmp_ref2, cder)
     end do
 
     ! interpolation with TAU
-    call akima_coefs(intp_tau, tmp_ref(:,1), tau, est_refs(1), akic(1), akic(2), akic(3))
-    call akima_coefs(intp_tau, tmp_ref(:,2), tau, est_refs(2), akic(4), akic(5), akic(6))
+    call akima_coefs(unq_tau, tmp_ref(:,1), tau, est_refs(1), akic(1), akic(2), akic(3))
+    call akima_coefs(unq_tau, tmp_ref(:,2), tau, est_refs(2), akic(4), akic(5), akic(6))
+
+    deallocate(tmp_ref1, tmp_ref2, tmp_ref)
+
+    allocate(tmp_ref1(size(unq_tau)), tmp_ref2(size(unq_tau)))
+    allocate(tmp_ref(size(unq_cder),2))
 
     ! interpolation with TAU
-    do i = 1, 5
-      do j = 1, 5
-        tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+j-2) + (icder+i-2))
-        tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+j-2) + (icder+i-2))
+    do i = 1, size(unq_cder)
+      do j = 1, size(unq_tau)
+        tmp_ref1(j) = lut_refs1(size(unq_cder) * (j-1) + i)
+        tmp_ref2(j) = lut_refs2(size(unq_cder) * (j-1) + i)
       end do
-      tmp_ref(i,1) = akima_intp(intp_tau, tmp_ref1, tau)
-      tmp_ref(i,2) = akima_intp(intp_tau, tmp_ref2, tau)
+      tmp_ref(i,1) = akima_intp(unq_tau, tmp_ref1, tau)
+      tmp_ref(i,2) = akima_intp(unq_tau, tmp_ref2, tau)
     end do
 
     ! interpolation with CDER
     ! tmp_ref1 is for dummy
-    call akima_coefs(intp_cder, tmp_ref(:,1), cder, tmp_ref1(1), akic(7), akic(8), akic(9))
-    call akima_coefs(intp_cder, tmp_ref(:,2), cder, tmp_ref1(2), akic(10), akic(11), akic(12))
+    call akima_coefs(unq_cder, tmp_ref(:,1), cder, tmp_ref1(1), akic(7), akic(8), akic(9))
+    call akima_coefs(unq_cder, tmp_ref(:,2), cder, tmp_ref1(2), akic(10), akic(11), akic(12))
     deallocate (unq_tau, unq_cder)
+    deallocate(tmp_ref1, tmp_ref2, tmp_ref)
   end subroutine estimate_refs
 
   ! cost function J
@@ -421,6 +414,8 @@ contains
     real(R_) :: cps(2) ! cloud physical parameters
     real(R_) :: akic(12) ! an array of akima coefficients
     real(R_) :: prev_cost = 100.0_R_
+    real(R_) :: best_cost = 100.0_R_
+    real(R_) :: best_cps(2) = (/0.0_R_, 0.0_R_/)
     integer :: i
 
     ! initialization
@@ -451,11 +446,22 @@ contains
       if (cost_res < threshold .or. abs(prev_cost - cost_res) < diff_thre) exit
       prev_cost = cost_res
 
+      if (cost_res < best_cost) then
+        best_cost = cost_res
+        best_cps(:) = cps(:)
+      endif
+
       cps = update_cloud_properties(obs_ref, est_ref, cps, akic)
     end do
 
-    tau  = cps(1)
-    cder = cps(2)
+    if (cost_res < best_cost) then
+      best_cps(:) = cps(:)
+    else
+      cost_res = best_cost
+    endif
+
+    tau  = best_cps(1)
+    cder = best_cps(2)
   end subroutine micore_retrieval
 end module micore_core
 

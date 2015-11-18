@@ -13,7 +13,7 @@
 !   micore_core.f90
 !
 ! ChangeLog
-!   201511xx : First Version
+!   20151118 : First Version
 !
 
 program micore
