@@ -6,7 +6,7 @@ RET_SRCS = micore_core.f90 micore_main.f90
 RET_OBJS = $(RET_SRCS:.f90=.o)
 
 FC = gfortran
-FCFLAGS = -O -Wall
+FCFLAGS = -O -Wall -fcheck=all -g
 
 all: $(TARGETS)
 
