@@ -183,26 +183,6 @@ contains
     end do
   end function select_uniq_elems
 
-  ! get inverse matrix for 2x2 matrix
-  ! if there's no inverse matrix, it will return -9999.9 matrix
-  function get_inv_matrix(mat)
-    real(R_) :: mat(2,2)
-    real(R_) :: get_inv_matrix(2,2)
-    real(R_) :: tmp
-
-    tmp = mat(1,1) * mat(2,2) - mat(1,2) * mat(2,1)
-
-    if (tmp /= 0.0) then
-      get_inv_matrix(1,1) =   mat(2,2) / tmp
-      get_inv_matrix(1,2) = - mat(1,2) / tmp
-      get_inv_matrix(2,1) = - mat(2,1) / tmp
-      get_inv_matrix(2,2) =   mat(2,2) / tmp
-    else
-      write (*,*), "There's no inverse matrix."
-      stop
-    endif
-  end function get_inv_matrix
-
   ! get coefficients of akima interpolation
   !   y = y0 + c1*x + c2*x^2 + c3*x^3
   !   this code is based on HPARX library
