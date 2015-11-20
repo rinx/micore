@@ -388,8 +388,12 @@ contains
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
-    update_cloud_properties(:) = cps(:) + &
-      matmul(get_inv_matrix(matmul(transpose(k), k)), matmul(transpose(k), refdiff_vec))
+    update_cloud_properties(1) = cps(1) + &
+      refdiff_vec(1) * k(1,1) * (k(2,2)**2 - k(2,1) * k(2,2)) + &
+      refdiff_vec(2) * k(1,2) * (k(2,1)**2 - k(2,1) * k(2,2))
+    update_cloud_properties(2) = cps(2) + &
+      refdiff_vec(1) * k(2,1) * (k(1,2)**2 - k(1,1) * k(1,2)) + &
+      refdiff_vec(2) * k(2,2) * (k(1,1)**2 - k(1,1) * k(1,2))
   end function update_cloud_properties
 
   ! main routine of retrieval code
