@@ -31,10 +31,10 @@ module micore_core
   logical, parameter :: verbose_flag = .true.
 
   ! threshold value for convergence of cost function
-  real(R_), parameter :: threshold = 0.00001_R_
-  real(R_), parameter :: diff_thre = 0.0000001_R_
+  real(R_), parameter :: threshold = 0.000000001_R_
+  real(R_), parameter :: diff_thre = 0.000000001_R_
   ! max # of iteration
-  integer, parameter :: max_iter = 9999
+  integer, parameter :: max_iter = 99999
 
 contains
   ! get commandline arguments
