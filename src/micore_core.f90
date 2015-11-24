@@ -269,6 +269,25 @@ contains
     end do
   end subroutine separate_lut
 
+  ! 1D-linear algebra solver for limited case (only for 2x2-matrix)
+  function solve_1Dlinalg_choles(A, b) result(x)
+    real(R_) :: A(2,2)
+    real(R_) :: b(2)
+    real(R_) :: x(2)
+    real(R_) :: L(2,2), z(2)
+
+    L(1,1) = sqrt(A(1,1))
+    L(1,2) = 0
+    L(2,1) = A(1,2) / L(1,1)
+    L(2,2) = sqrt(A(2,2) - L(2,1)**2)
+
+    z(1) = b(1) / L(1,1)
+    z(2) = (b(2) - L(2,1) * z(1)) / L(2,2)
+
+    x(2) = z(2) / L(2,2)
+    x(1) = (z(1) - L(2,1) * x(2)) / L(1,1)
+  end function solve_1Dlinalg_choles
+
   ! estimate initial tau and cder by least square method
   function estimate_initial_values(lut_refs1, lut_refs2, tau_arr, cder_arr, obs_ref)
     real(R_) :: lut_refs1(:), lut_refs2(:) ! reflectances of lut
@@ -368,12 +387,9 @@ contains
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
-    update_cloud_properties(1) = cps(1) + &
-      refdiff_vec(1) * k(1,1) * (k(2,2)**2 - k(2,1) * k(2,2)) + &
-      refdiff_vec(2) * k(1,2) * (k(2,1)**2 - k(2,1) * k(2,2))
-    update_cloud_properties(2) = cps(2) + &
-      refdiff_vec(1) * k(2,1) * (k(1,2)**2 - k(1,1) * k(1,2)) + &
-      refdiff_vec(2) * k(2,2) * (k(1,1)**2 - k(1,1) * k(1,2))
+    update_cloud_properties(:) = cps(:) + &
+      solve_1Dlinalg_choles(matmul(transpose(k(:,:)), k(:,:)), &
+      matmul(transpose(k(:,:)), refdiff_vec(:)))
   end function update_cloud_properties
 
   ! main routine of retrieval code
