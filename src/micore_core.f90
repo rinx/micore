@@ -235,9 +235,9 @@ contains
 
     dx = xtab(ix+1) - xtab(ix)
     dy = ytab(ix+1) - ytab(ix)
-    c1 = dydxtab(0) * dx
-    c2 =  3.0_R_ * dy - (c1 + dydxtab(1)*dx) - c1
-    c3 = -2.0_R_ * dy + (c1 + dydxtab(1)*dx)
+    c1 = dydxtab(0)
+    c2 = (3.0_R_ * dy / dx - (c1 + dydxtab(1)) - c1) / dx
+    c3 = (-2.0_R_ * dy / dx + (c1 + dydxtab(1))) / dx**2
     y = ytab(ix) + ax * (c1 + ax * (c2 + ax * c3))
   end subroutine akima_coefs
 
@@ -251,6 +251,17 @@ contains
 
     call akima_coefs(xtab, ytab, x, akima_intp, c1, c2, c3)
   end function akima_intp
+
+  ! calculate derivative of akima intp
+  function akima_derv(p1, p2, p3, x1, x)
+    real(R_) :: p1, p2, p3, x1, x
+    real(R_) :: akima_derv
+
+    akima_derv = &
+      3.0_R_ * p3 * x**2 + &
+      (2.0_R_ * p2 - 6.0_R_ * p3 * x1) * x - &
+      2.0_R_ * p2 * x1 + 3.0_R_ * p3 * x1**2 + p1
+  end function akima_derv
 
   ! separate look-up table into several vectors
   subroutine separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
@@ -308,10 +319,13 @@ contains
     real(R_), intent(in)  :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
     real(R_), intent(in)  :: tau, cder
     real(R_), intent(out) :: est_refs(2)
-    real(R_), intent(out) :: akic(12) ! an array of akima coefficients
+    real(R_), intent(out) :: akic(14) ! an array of akima coefficients
     real(R_), allocatable :: unq_tau(:), unq_cder(:) ! unique tau and cder
-    real(R_), allocatable :: tmp_ref1(:), tmp_ref2(:)
-    real(R_), allocatable :: tmp_ref(:,:)
+    real(R_) :: intp_tau(5), intp_cder(5)
+    real(R_) :: tmp_ref1(5), tmp_ref2(5)
+    real(R_) :: tmp_ref(5,2)
+    integer  :: itau, icder
+    real(R_) :: rat
     integer  :: i, j
 
     ! extract unique values
@@ -320,44 +334,72 @@ contains
     unq_tau(:)  = select_uniq_elems(tau_arr(:))
     unq_cder(:) = select_uniq_elems(cder_arr(:))
 
-    allocate(tmp_ref1(size(unq_cder)), tmp_ref2(size(unq_cder)))
-    allocate(tmp_ref(size(unq_tau),2))
+    call grid_idx_loc(unq_tau, tau, itau, rat)
+    if (itau <= 2 .and. itau > size(unq_tau) - 2) then
+      write(*,*), 'Too few points in this LUT.'
+      stop
+    else if (itau <= 2) then
+      itau = 3
+    else if (itau > size(unq_tau) - 2) then
+      itau = size(unq_tau) - 2
+    else if (itau > size(unq_tau) - 1) then
+      itau = size(unq_tau) - 1
+    end if
+    intp_tau(1) = unq_tau(itau-2)
+    intp_tau(2) = unq_tau(itau-1)
+    intp_tau(3) = unq_tau(itau)
+    intp_tau(4) = unq_tau(itau+1)
+    intp_tau(5) = unq_tau(itau+2)
+
+    call grid_idx_loc(unq_cder, cder, icder, rat)
+    if (icder <= 2 .and. icder > size(unq_cder) - 2) then
+      write(*,*), 'Too few points in this LUT.'
+      stop
+    else if (icder <= 2) then
+      icder = 3
+    else if (icder > size(unq_cder) - 2) then
+      icder = size(unq_cder) - 2
+    else if (icder > size(unq_cder) - 1) then
+      icder = size(unq_cder) - 1
+    end if
+    intp_cder(1) = unq_cder(icder-2)
+    intp_cder(2) = unq_cder(icder-1)
+    intp_cder(3) = unq_cder(icder)
+    intp_cder(4) = unq_cder(icder+1)
+    intp_cder(5) = unq_cder(icder+2)
 
     ! interpolation with CDER
-    do i = 1, size(unq_tau)
-      do j = 1, size(unq_cder)
-        tmp_ref1(j) = lut_refs1(size(unq_cder) * (i-1) + j)
-        tmp_ref2(j) = lut_refs2(size(unq_cder) * (i-1) + j)
+    do i = 1, 5
+      do j = 1, 5
+        tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+i-4) + (icder+j-3))
+        tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+i-4) + (icder+j-3))
       end do
-      tmp_ref(i,1) = akima_intp(unq_cder, tmp_ref1, cder)
-      tmp_ref(i,2) = akima_intp(unq_cder, tmp_ref2, cder)
+      tmp_ref(i,1) = akima_intp(intp_cder, tmp_ref1, cder)
+      tmp_ref(i,2) = akima_intp(intp_cder, tmp_ref2, cder)
     end do
 
     ! interpolation with TAU
-    call akima_coefs(unq_tau, tmp_ref(:,1), tau, est_refs(1), akic(1), akic(2), akic(3))
-    call akima_coefs(unq_tau, tmp_ref(:,2), tau, est_refs(2), akic(4), akic(5), akic(6))
-
-    deallocate(tmp_ref1, tmp_ref2, tmp_ref)
-
-    allocate(tmp_ref1(size(unq_tau)), tmp_ref2(size(unq_tau)))
-    allocate(tmp_ref(size(unq_cder),2))
+    call akima_coefs(intp_tau, tmp_ref(:,1), tau, est_refs(1), akic(1), akic(2), akic(3))
+    call akima_coefs(intp_tau, tmp_ref(:,2), tau, est_refs(2), akic(4), akic(5), akic(6))
 
     ! interpolation with TAU
-    do i = 1, size(unq_cder)
-      do j = 1, size(unq_tau)
-        tmp_ref1(j) = lut_refs1(size(unq_cder) * (j-1) + i)
-        tmp_ref2(j) = lut_refs2(size(unq_cder) * (j-1) + i)
+    do i = 1, 5
+      do j = 1, 5
+        tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+j-4) + (icder+i-3))
+        tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+j-4) + (icder+i-3))
       end do
-      tmp_ref(i,1) = akima_intp(unq_tau, tmp_ref1, tau)
-      tmp_ref(i,2) = akima_intp(unq_tau, tmp_ref2, tau)
+      tmp_ref(i,1) = akima_intp(intp_tau, tmp_ref1, tau)
+      tmp_ref(i,2) = akima_intp(intp_tau, tmp_ref2, tau)
     end do
 
     ! interpolation with CDER
     ! tmp_ref1 is for dummy
-    call akima_coefs(unq_cder, tmp_ref(:,1), cder, tmp_ref1(1), akic(7), akic(8), akic(9))
-    call akima_coefs(unq_cder, tmp_ref(:,2), cder, tmp_ref1(2), akic(10), akic(11), akic(12))
+    call akima_coefs(intp_cder, tmp_ref(:,1), cder, tmp_ref1(1), akic(7), akic(8), akic(9))
+    call akima_coefs(intp_cder, tmp_ref(:,2), cder, tmp_ref1(2), akic(10), akic(11), akic(12))
+
+    akic(13) = unq_tau(itau)
+    akic(14) = unq_cder(icder)
     deallocate (unq_tau, unq_cder)
-    deallocate(tmp_ref1, tmp_ref2, tmp_ref)
   end subroutine estimate_refs
 
   ! cost function J
@@ -374,16 +416,16 @@ contains
   function update_cloud_properties(obs_ref, est_ref, cps, akic)
     real(R_) :: obs_ref(2), est_ref(2)
     real(R_) :: cps(2)
-    real(R_) :: akic(12)
+    real(R_) :: akic(14)
     real(R_) :: update_cloud_properties(2)
     real(R_) :: k(2,2) ! Jacobian matrix
     real(R_) :: refdiff_vec(2) ! difference vector of reflectances
 
     ! Jacobian matrix
-    k(1,1) = akic(1)  + cps(1) * (2 * akic(2)  + cps(1) * 3 * akic(3))  ! (dR_1)/(dtau) at tau = tau_i
-    k(1,2) = akic(7)  + cps(2) * (2 * akic(8)  + cps(2) * 3 * akic(9))  ! (dR_1)/(dre)  at re  = re_i
-    k(2,1) = akic(4)  + cps(1) * (2 * akic(5)  + cps(1) * 3 * akic(6))  ! (dR_2)/(dtau) at tau = tau_i
-    k(2,2) = akic(10) + cps(2) * (2 * akic(11) + cps(2) * 3 * akic(12)) ! (dR_2)/(dre)  at re  = re_i
+    k(1,1) = akima_derv(akic(1),  akic(2),  akic(3),  akic(13), cps(1)) ! (dR_1)/(dtau) at tau = tau_i
+    k(1,2) = akima_derv(akic(7),  akic(8),  akic(9),  akic(14), cps(2)) ! (dR_1)/(dre)  at re  = re_i
+    k(2,1) = akima_derv(akic(4),  akic(5),  akic(6),  akic(13), cps(1)) ! (dR_2)/(dtau) at tau = tau_i
+    k(2,2) = akima_derv(akic(10), akic(11), akic(12), akic(14), cps(2)) ! (dR_2)/(dre)  at re  = re_i
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
@@ -412,7 +454,7 @@ contains
     real(R_) :: tau_arr(size(lut,1)), cder_arr(size(lut, 1)) ! tau and cder in lut
     real(R_) :: est_ref(2) ! estimated reflectances
     real(R_) :: cps(2) ! cloud physical parameters
-    real(R_) :: akic(12) ! an array of akima coefficients
+    real(R_) :: akic(14) ! an array of akima coefficients
     real(R_) :: prev_cost = 100.0_R_
     real(R_) :: best_cost = 100.0_R_
     real(R_) :: best_cps(2) = (/0.0_R_, 0.0_R_/)
