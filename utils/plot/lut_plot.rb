@@ -51,19 +51,23 @@ unqcders = lut.transpose(1,0).to_a[1].uniq
 Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "png"
-    plot.output File.expand_path("lut.png")
+    plot.output File.expand_path(outfilepath)
     # plot.terminal 'x11'
 
     plot.title "look-up table"
     plot.xlabel "Reflectance 1"
     plot.ylabel "Reflectance 2"
 
-    plot.xrange "[0.0:1.2]"
+    plot.xrange "[0.0:1.3]"
     plot.yrange "[0.0:0.6]"
 
     plot.set "key off"
 
     clr = 30
+    ilbl = 1
+
+    lblcders = [4.0, 9.0, 15.0, 20.0, 25.0, 32.0]
+    lbltaus  = [1.0, 5.0, 10.0, 50.0, 100.0]
 
     unqcders.each do |cder|
       ls = lut.to_a.select do |l|
@@ -76,6 +80,11 @@ Gnuplot.open do |gp|
       ls.each do |l|
         pltref1.push(l[2])
         pltref2.push(l[3])
+      end
+
+      if lblcders.include?(cder) then
+        plot.set "label #{ilbl} at first #{pltref1[-1] + 0.02},#{pltref2[-1]} '#{cder}'"
+        ilbl += 1
       end
 
       plot.data << Gnuplot::DataSet.new([pltref1, pltref2]) do |ds|
@@ -96,6 +105,11 @@ Gnuplot.open do |gp|
       ls.each do |l|
         pltref1.push(l[2])
         pltref2.push(l[3])
+      end
+
+      if lbltaus.include?(tau) then
+        plot.set "label #{ilbl} at first #{pltref1[0] - 0.02},#{pltref2[0] + 0.03} '#{tau}'"
+        ilbl += 1
       end
 
       plot.data << Gnuplot::DataSet.new([pltref1, pltref2]) do |ds|
