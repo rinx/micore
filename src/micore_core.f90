@@ -183,23 +183,22 @@ contains
     end do
   end function select_uniq_elems
 
-  ! get coefficients of akima interpolation
+  ! akima interpolation with dxdy
   !   y = y0 + c1*x + c2*x^2 + c3*x^3
   !   this code is based on HPARX library
-  subroutine akima_coefs(xtab, ytab, x, y, c1, c2, c3, x0)
+  subroutine akima_withK(xtab, ytab, x, y, k)
     real(R_), intent(in)  :: xtab(:)
     real(R_), intent(in)  :: ytab(:)
     real(R_), intent(in)  :: x
     real(R_), intent(out) :: y
-    real(R_), intent(out) :: c1, c2, c3, x0
+    real(R_), intent(out) :: k
+    real(R_) :: c1, c2, c3
     real(R_) :: dydxtab(0:1), d(-2:2), dx, dy, w0, w1, ax
     integer  :: nx, i, ix
 
     nx = size(ytab)
 
     call grid_idx_loc(xtab, x, ix, ax, 1)
-
-    x0 = xtab(ix)
 
     ! Trapezoidal difference
     if (ix >= 3 .and. ix <= nx - 3) then
@@ -241,17 +240,18 @@ contains
     c2 = 3.0_R_ * dy - (c1 + dydxtab(1)*dx) - c1
     c3 = -2.0_R_ * dy + (c1 + dydxtab(1)*dx)
     y = ytab(ix) + ax * (c1 + ax * (c2 + ax * c3))
-  end subroutine akima_coefs
+    k = (c1 + ax * (2.0_R_ * c2 + 3.0_R_ * c3 * ax)) / dx
+  end subroutine akima_withK
 
-  ! easy alias for akima_coefs
+  ! easy alias for akima_withK
   function akima_intp(xtab, ytab, x)
     real(R_) :: xtab(:)
     real(R_) :: ytab(:)
     real(R_) :: x
     real(R_) :: akima_intp
-    real(R_) :: c1, c2, c3, x0
+    real(R_) :: k
 
-    call akima_coefs(xtab, ytab, x, akima_intp, c1, c2, c3, x0)
+    call akima_withK(xtab, ytab, x, akima_intp, k)
   end function akima_intp
 
   ! calculate derivative of akima intp
@@ -316,12 +316,12 @@ contains
   end function estimate_initial_values
 
   ! estimate reflectances from cloud properties by using look-up table
-  subroutine estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, tau, cder, est_refs, akic)
+  subroutine estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, tau, cder, est_refs, k)
     real(R_), intent(in)  :: lut_refs1(:), lut_refs2(:) ! reflectances of lut
     real(R_), intent(in)  :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
     real(R_), intent(in)  :: tau, cder
     real(R_), intent(out) :: est_refs(2)
-    real(R_), intent(out) :: akic(16) ! an array of akima coefficients
+    real(R_), intent(out) :: k(2,2) ! Jacobian matrix
     real(R_), allocatable :: unq_tau(:), unq_cder(:) ! unique tau and cder
     real(R_) :: intp_tau(5), intp_cder(5)
     real(R_) :: tmp_ref1(5), tmp_ref2(5)
@@ -381,8 +381,8 @@ contains
     end do
 
     ! interpolation with TAU
-    call akima_coefs(intp_tau, tmp_ref(:,1), tau, est_refs(1), akic(1), akic(2), akic(3), akic(13))
-    call akima_coefs(intp_tau, tmp_ref(:,2), tau, est_refs(2), akic(4), akic(5), akic(6), akic(14))
+    call akima_withK(intp_tau, tmp_ref(:,1), tau, est_refs(1), k(1,1))
+    call akima_withK(intp_tau, tmp_ref(:,2), tau, est_refs(2), k(2,1))
 
     ! interpolation with TAU
     do i = 1, 5
@@ -396,8 +396,8 @@ contains
 
     ! interpolation with CDER
     ! tmp_ref1 is for dummy
-    call akima_coefs(intp_cder, tmp_ref(:,1), cder, tmp_ref1(1), akic(7),  akic(8),  akic(9),  akic(15))
-    call akima_coefs(intp_cder, tmp_ref(:,2), cder, tmp_ref1(2), akic(10), akic(11), akic(12), akic(16))
+    call akima_withK(intp_cder, tmp_ref(:,1), cder, tmp_ref1(1), k(1,2))
+    call akima_withK(intp_cder, tmp_ref(:,2), cder, tmp_ref1(2), k(2,2))
 
     deallocate (unq_tau, unq_cder)
   end subroutine estimate_refs
@@ -413,19 +413,12 @@ contains
   end function cost_func
 
   ! update cloud properties
-  function update_cloud_properties(obs_ref, est_ref, cps, akic)
+  function update_cloud_properties(obs_ref, est_ref, cps, k)
     real(R_) :: obs_ref(2), est_ref(2)
     real(R_) :: cps(2)
-    real(R_) :: akic(16)
     real(R_) :: update_cloud_properties(2)
     real(R_) :: k(2,2) ! Jacobian matrix
     real(R_) :: refdiff_vec(2) ! difference vector of reflectances
-
-    ! Jacobian matrix
-    k(1,1) = akima_derv(akic(1),  akic(2),  akic(3),  akic(13), cps(1)) ! (dR_1)/(dtau) at tau = tau_i
-    k(1,2) = akima_derv(akic(7),  akic(8),  akic(9),  akic(15), cps(2)) ! (dR_1)/(dre)  at re  = re_i
-    k(2,1) = akima_derv(akic(4),  akic(5),  akic(6),  akic(14), cps(1)) ! (dR_2)/(dtau) at tau = tau_i
-    k(2,2) = akima_derv(akic(10), akic(11), akic(12), akic(16), cps(2)) ! (dR_2)/(dre)  at re  = re_i
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
@@ -454,7 +447,7 @@ contains
     real(R_) :: tau_arr(size(lut,1)), cder_arr(size(lut, 1)) ! tau and cder in lut
     real(R_) :: est_ref(2) ! estimated reflectances
     real(R_) :: cps(2) ! cloud physical parameters
-    real(R_) :: akic(16) ! an array of akima coefficients
+    real(R_) :: k(2,2) ! an array of akima coefficients
     real(R_) :: prev_cost = 100.0_R_
     real(R_) :: best_cost = 100.0_R_
     real(R_) :: best_cps(2) = (/0.0_R_, 0.0_R_/)
@@ -473,7 +466,7 @@ contains
         write (*,*) "# estimated CDER: ", cps(2)
       end if
 
-      call estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, cps(1), cps(2), est_ref, akic)
+      call estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, cps(1), cps(2), est_ref, k(:,:))
       if (verbose_flag) then
         write (*,*) "# observed  REF1: ", obs_ref(1)
         write (*,*) "# observed  REF2: ", obs_ref(2)
@@ -493,7 +486,7 @@ contains
         best_cps(:) = cps(:)
       endif
 
-      cps = update_cloud_properties(obs_ref, est_ref, cps, akic)
+      cps = update_cloud_properties(obs_ref, est_ref, cps, k(:,:))
     end do
 
     if (cost_res < best_cost) then
