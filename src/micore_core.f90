@@ -10,7 +10,7 @@
 !   main routine and libraries of MICO-RE cloud optical retrieval code
 !
 ! ChangeLog
-!   20151118 : First Version
+!   20151127 : First Version
 !
 
 
