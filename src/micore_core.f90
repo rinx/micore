@@ -289,6 +289,36 @@ contains
     end do
   end subroutine separate_lut
 
+  function nonlin_conv_tau(tau)
+    real(R_) :: tau
+    real(R_) :: nonlin_conv_tau
+
+    nonlin_conv_tau = log(tau)
+  end function nonlin_conv_tau
+
+  function nonlin_conv_cder(cder)
+    real(R_) :: cder
+    real(R_) :: nonlin_conv_cder
+
+    nonlin_conv_cder = log(cder)
+  end function nonlin_conv_cder
+
+  function inv_nonlin_conv_tau(ltau, dx)
+    real(R_) :: ltau
+    real(R_) :: dx
+    real(R_) :: inv_nonlin_conv_tau
+
+    inv_nonlin_conv_tau = NAPIER ** (ltau + dx)
+  end function inv_nonlin_conv_tau
+
+  function inv_nonlin_conv_cder(lcder, dx)
+    real(R_) :: lcder
+    real(R_) :: dx
+    real(R_) :: inv_nonlin_conv_cder
+
+    inv_nonlin_conv_cder = NAPIER ** (lcder + dx)
+  end function inv_nonlin_conv_cder
+
   ! 1D-linear algebra solver for limited case (only for 2x2-matrix)
   function solve_1Dlinalg_choles(A, b) result(x)
     real(R_) :: A(2,2)
@@ -338,8 +368,8 @@ contains
     real(R_) :: rat
     integer  :: i, j
 
-    ltau  = log(tau)
-    lcder = log(cder)
+    ltau  = nonlin_conv_tau(tau)
+    lcder = nonlin_conv_cder(cder)
 
     ! extract unique values
     allocate (unq_tau(size(select_uniq_elems(tau_arr))))
@@ -358,11 +388,11 @@ contains
     else if (itau > size(unq_tau) - 1) then
       itau = size(unq_tau) - 1
     end if
-    intp_tau(1) = log(unq_tau(itau-2))
-    intp_tau(2) = log(unq_tau(itau-1))
-    intp_tau(3) = log(unq_tau(itau))
-    intp_tau(4) = log(unq_tau(itau+1))
-    intp_tau(5) = log(unq_tau(itau+2))
+    intp_tau(1) = nonlin_conv_tau(unq_tau(itau-2))
+    intp_tau(2) = nonlin_conv_tau(unq_tau(itau-1))
+    intp_tau(3) = nonlin_conv_tau(unq_tau(itau))
+    intp_tau(4) = nonlin_conv_tau(unq_tau(itau+1))
+    intp_tau(5) = nonlin_conv_tau(unq_tau(itau+2))
 
     call grid_idx_loc(unq_cder, cder, icder, rat)
     if (icder <= 2 .and. icder > size(unq_cder) - 2) then
@@ -375,11 +405,11 @@ contains
     else if (icder > size(unq_cder) - 1) then
       icder = size(unq_cder) - 1
     end if
-    intp_cder(1) = log(unq_cder(icder-2))
-    intp_cder(2) = log(unq_cder(icder-1))
-    intp_cder(3) = log(unq_cder(icder))
-    intp_cder(4) = log(unq_cder(icder+1))
-    intp_cder(5) = log(unq_cder(icder+2))
+    intp_cder(1) = nonlin_conv_cder(unq_cder(icder-2))
+    intp_cder(2) = nonlin_conv_cder(unq_cder(icder-1))
+    intp_cder(3) = nonlin_conv_cder(unq_cder(icder))
+    intp_cder(4) = nonlin_conv_cder(unq_cder(icder+1))
+    intp_cder(5) = nonlin_conv_cder(unq_cder(icder+2))
 
     ! interpolation with CDER
     do i = 1, 5
@@ -429,13 +459,16 @@ contains
     real(R_) :: cps(2)
     real(R_) :: update_cloud_properties(2)
     real(R_) :: k(2,2) ! Jacobian matrix
+    real(R_) :: dx(2)
     real(R_) :: refdiff_vec(2) ! difference vector of reflectances
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
-    update_cloud_properties(:) = NAPIER ** (log(cps(:)) + &
-      solve_1Dlinalg_choles(matmul(transpose(k(:,:)), k(:,:)), &
-      matmul(transpose(k(:,:)), refdiff_vec(:))))
+    dx(:) = solve_1Dlinalg_choles(matmul(transpose(k(:,:)), k(:,:)), &
+      matmul(transpose(k(:,:)), refdiff_vec(:)))
+
+    update_cloud_properties(1) = inv_nonlin_conv_tau(nonlin_conv_tau(cps(1)), dx(1))
+    update_cloud_properties(2) = inv_nonlin_conv_cder(nonlin_conv_cder(cps(2)), dx(2))
 
     update_cloud_properties(1) = max(tau_min,  min(tau_max,  update_cloud_properties(1)))
     update_cloud_properties(2) = max(cder_min, min(cder_max, update_cloud_properties(2)))
