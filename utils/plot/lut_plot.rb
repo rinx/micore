@@ -15,6 +15,7 @@
 #
 # Changelog:
 #   20151118: First version
+#   20151128: Add color and labels
 #
 
 require 'narray'
@@ -54,7 +55,7 @@ Gnuplot.open do |gp|
     plot.output File.expand_path(outfilepath)
     # plot.terminal 'x11'
 
-    plot.title "look-up table"
+    plot.title "#{inpfilepath.gsub(/^.*\//,'')}"
     plot.xlabel "Reflectance 1"
     plot.ylabel "Reflectance 2"
 
@@ -63,7 +64,7 @@ Gnuplot.open do |gp|
 
     plot.set "key off"
 
-    clr = 30
+    clr = 0
     ilbl = 1
 
     lblcders = [4.0, 9.0, 15.0, 20.0, 25.0, 32.0]
@@ -87,12 +88,15 @@ Gnuplot.open do |gp|
         ilbl += 1
       end
 
+      rdclr = 14  + (215 / unqcders.length * clr)
+      grclr = 191 - (158 / unqcders.length * clr)
+
       plot.data << Gnuplot::DataSet.new([pltref1, pltref2]) do |ds|
         ds.with = "lines"
         ds.linewidth = 2
-        ds.linecolor = "rgb \"##{format('%02x', clr)}33#{format('%02x', clr)}\""
+        ds.linecolor = "rgb \"##{format('%02x', rdclr)}#{format('%02x', grclr)}00\""
       end
-      clr += 225 / unqcders.length
+      clr += 1
     end
     unqtaus.each do |tau|
       ls = lut.to_a.select do |l|
