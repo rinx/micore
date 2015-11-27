@@ -27,14 +27,16 @@ module micore_core
   integer, parameter :: RD_ = selected_real_kind(13) ! higher  precision
   integer, parameter :: R4_ = selected_real_kind(6)  ! 4-byte real
 
+  real(R_), parameter :: NAPIER = 2.7182818284590452353602874711352
+
   ! flag for verbose mode
   logical, parameter :: verbose_flag = .true.
 
   ! threshold value for convergence of cost function
-  real(R_), parameter :: threshold = 1e-10_R_
-  real(R_), parameter :: diff_thre = 1e-10_R_
+  real(R_), parameter :: threshold = 1e-5_R_
+  real(R_), parameter :: diff_thre = 1e-5_R_
   ! max # of iteration
-  integer, parameter :: max_iter = 99999
+  integer, parameter :: max_iter = 9999
   ! max and min of tau and cder
   real(R_), parameter :: tau_max  = 150.0_R_
   real(R_), parameter :: tau_min  = 0.3_R_
@@ -332,8 +334,12 @@ contains
     real(R_) :: tmp_ref1(5), tmp_ref2(5)
     real(R_) :: tmp_ref(5,2)
     integer  :: itau, icder
+    real(R_) :: ltau, lcder
     real(R_) :: rat
     integer  :: i, j
+
+    ltau  = log(tau)
+    lcder = log(cder)
 
     ! extract unique values
     allocate (unq_tau(size(select_uniq_elems(tau_arr))))
@@ -352,11 +358,11 @@ contains
     else if (itau > size(unq_tau) - 1) then
       itau = size(unq_tau) - 1
     end if
-    intp_tau(1) = unq_tau(itau-2)
-    intp_tau(2) = unq_tau(itau-1)
-    intp_tau(3) = unq_tau(itau)
-    intp_tau(4) = unq_tau(itau+1)
-    intp_tau(5) = unq_tau(itau+2)
+    intp_tau(1) = log(unq_tau(itau-2))
+    intp_tau(2) = log(unq_tau(itau-1))
+    intp_tau(3) = log(unq_tau(itau))
+    intp_tau(4) = log(unq_tau(itau+1))
+    intp_tau(5) = log(unq_tau(itau+2))
 
     call grid_idx_loc(unq_cder, cder, icder, rat)
     if (icder <= 2 .and. icder > size(unq_cder) - 2) then
@@ -369,11 +375,11 @@ contains
     else if (icder > size(unq_cder) - 1) then
       icder = size(unq_cder) - 1
     end if
-    intp_cder(1) = unq_cder(icder-2)
-    intp_cder(2) = unq_cder(icder-1)
-    intp_cder(3) = unq_cder(icder)
-    intp_cder(4) = unq_cder(icder+1)
-    intp_cder(5) = unq_cder(icder+2)
+    intp_cder(1) = log(unq_cder(icder-2))
+    intp_cder(2) = log(unq_cder(icder-1))
+    intp_cder(3) = log(unq_cder(icder))
+    intp_cder(4) = log(unq_cder(icder+1))
+    intp_cder(5) = log(unq_cder(icder+2))
 
     ! interpolation with CDER
     do i = 1, 5
@@ -381,13 +387,13 @@ contains
         tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+i-4) + (icder+j-3))
         tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+i-4) + (icder+j-3))
       end do
-      tmp_ref(i,1) = akima_intp(intp_cder, tmp_ref1, cder)
-      tmp_ref(i,2) = akima_intp(intp_cder, tmp_ref2, cder)
+      tmp_ref(i,1) = akima_intp(intp_cder, tmp_ref1, lcder)
+      tmp_ref(i,2) = akima_intp(intp_cder, tmp_ref2, lcder)
     end do
 
     ! interpolation with TAU
-    call akima_withK(intp_tau, tmp_ref(:,1), tau, est_refs(1), k(1,1))
-    call akima_withK(intp_tau, tmp_ref(:,2), tau, est_refs(2), k(2,1))
+    call akima_withK(intp_tau, tmp_ref(:,1), ltau, est_refs(1), k(1,1))
+    call akima_withK(intp_tau, tmp_ref(:,2), ltau, est_refs(2), k(2,1))
 
     ! interpolation with TAU
     do i = 1, 5
@@ -395,14 +401,14 @@ contains
         tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+j-4) + (icder+i-3))
         tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+j-4) + (icder+i-3))
       end do
-      tmp_ref(i,1) = akima_intp(intp_tau, tmp_ref1, tau)
-      tmp_ref(i,2) = akima_intp(intp_tau, tmp_ref2, tau)
+      tmp_ref(i,1) = akima_intp(intp_tau, tmp_ref1, ltau)
+      tmp_ref(i,2) = akima_intp(intp_tau, tmp_ref2, ltau)
     end do
 
     ! interpolation with CDER
     ! tmp_ref1 is for dummy
-    call akima_withK(intp_cder, tmp_ref(:,1), cder, tmp_ref1(1), k(1,2))
-    call akima_withK(intp_cder, tmp_ref(:,2), cder, tmp_ref1(2), k(2,2))
+    call akima_withK(intp_cder, tmp_ref(:,1), lcder, tmp_ref1(1), k(1,2))
+    call akima_withK(intp_cder, tmp_ref(:,2), lcder, tmp_ref1(2), k(2,2))
 
     deallocate (unq_tau, unq_cder)
   end subroutine estimate_refs
@@ -427,9 +433,9 @@ contains
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
-    update_cloud_properties(:) = cps(:) + &
+    update_cloud_properties(:) = NAPIER ** (log(cps(:)) + &
       solve_1Dlinalg_choles(matmul(transpose(k(:,:)), k(:,:)), &
-      matmul(transpose(k(:,:)), refdiff_vec(:)))
+      matmul(transpose(k(:,:)), refdiff_vec(:))))
 
     update_cloud_properties(1) = max(tau_min,  min(tau_max,  update_cloud_properties(1)))
     update_cloud_properties(2) = max(cder_min, min(cder_max, update_cloud_properties(2)))
