@@ -31,10 +31,15 @@ module micore_core
   logical, parameter :: verbose_flag = .true.
 
   ! threshold value for convergence of cost function
-  real(R_), parameter :: threshold = 0.000000001_R_
-  real(R_), parameter :: diff_thre = 0.000000001_R_
+  real(R_), parameter :: threshold = 1e-10_R_
+  real(R_), parameter :: diff_thre = 1e-10_R_
   ! max # of iteration
   integer, parameter :: max_iter = 99999
+  ! max and min of tau and cder
+  real(R_), parameter :: tau_max  = 150.0_R_
+  real(R_), parameter :: tau_min  = 0.3_R_
+  real(R_), parameter :: cder_max = 35.0_R_
+  real(R_), parameter :: cder_min = 1.0_R_
 
 contains
   ! get commandline arguments
@@ -425,6 +430,9 @@ contains
     update_cloud_properties(:) = cps(:) + &
       solve_1Dlinalg_choles(matmul(transpose(k(:,:)), k(:,:)), &
       matmul(transpose(k(:,:)), refdiff_vec(:)))
+
+    update_cloud_properties(1) = max(tau_min,  min(tau_max,  update_cloud_properties(1)))
+    update_cloud_properties(2) = max(cder_min, min(cder_max, update_cloud_properties(2)))
   end function update_cloud_properties
 
   ! main routine of retrieval code
