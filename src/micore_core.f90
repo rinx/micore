@@ -33,8 +33,8 @@ module micore_core
   logical, parameter :: verbose_flag = .true.
 
   ! threshold value for convergence of cost function
-  real(R_), parameter :: threshold = 1e-5_R_
-  real(R_), parameter :: diff_thre = 1e-5_R_
+  real(R_), parameter :: threshold = 1e-10_R_
+  real(R_), parameter :: diff_thre = 1e-10_R_
   ! max # of iteration
   integer, parameter :: max_iter = 9999
   ! max and min of tau and cder
