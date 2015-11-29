@@ -101,7 +101,6 @@ Gnuplot.open do |gp|
 
     plot.set "key off"
 
-    clr = 0
     ilbl = 1
 
     lblcders = [4.0, 9.0, 15.0, 20.0, 25.0, 32.0]
@@ -125,14 +124,13 @@ Gnuplot.open do |gp|
         ilbl += 1
       end
 
-      rdclr = 14  + (215 / unqcders.length * clr)
-      grclr = 191 - (158 / unqcders.length * clr)
+      rdclr = 14  + (215 / (unqcders.max - unqcders.min) * (cder - unqcders.min))
+      grclr = 191 - (158 / (unqcders.max - unqcders.min) * (cder - unqcders.min))
 
       plot.data << Gnuplot::DataSet.new([pltref1, pltref2]) do |ds|
         ds.with = "lines"
         ds.linecolor = "rgb \"##{format('%02x', rdclr)}#{format('%02x', grclr)}00\""
       end
-      clr += 1
     end
     unqtaus.each do |tau|
       ls = lut.to_a.select do |l|
