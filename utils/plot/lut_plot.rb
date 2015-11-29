@@ -23,22 +23,22 @@ require 'narray'
 require 'gnuplot'
 
 
-if ARGV.size < 3 then
+if ARGV.size < 2 then
   STDERR.puts <<heredoc
 Usage: ruby #{$0} input output numrecord
   input:  lut filename
   output: output png filename
-  numrecord = (# of tau) * (# of cder)
 heredoc
   exit
 end
 
 inpfilepath = ARGV[0]
 outfilepath = ARGV[1]
-numrecord   = ARGV[2].to_i
+
 
 if File.exist?(File.expand_path(inpfilepath)) then
   datafile = open(File.expand_path(inpfilepath), 'r+b')
+  numrecord = datafile.size / 16
   lut = NArray.sfloat(4, numrecord)
   tmpstr = datafile.read(4*4*numrecord)
   lut[true,true] = NArray.to_na(tmpstr, "sfloat", 4, numrecord)
