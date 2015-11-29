@@ -130,7 +130,11 @@ Gnuplot.open do |gp|
 
       plot.data << Gnuplot::DataSet.new([pltref1, pltref2]) do |ds|
         ds.with = "lines"
-        ds.linecolor = "rgb \"#999999\""
+        if lbltaus.include?(tau) then
+          ds.linecolor = "rgb \"#45a1cf\""
+        else
+          ds.linecolor = "rgb \"#999999\""
+        end
       end
     end
 
