@@ -51,16 +51,25 @@ unqcders = lut.transpose(1,0).to_a[1].uniq
 
 Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
-    plot.terminal "png"
-    plot.output File.expand_path(outfilepath)
-    # plot.terminal 'x11'
+    if outfilepath =~ /none/ then
+      plot.terminal 'x11'
+    elsif outfilepath =~ /\.tex$/ then
+      plot.terminal "tikz"
+      plot.output File.expand_path(outfilepath)
+    elsif outfilepath =~ /\.pdf$/ then
+      plot.terminal "pdf"
+      plot.output File.expand_path(outfilepath)
+    elsif outfilepath =~ /\.png$/ then
+      plot.terminal "png"
+      plot.output File.expand_path(outfilepath)
+    end
 
-    plot.title "#{inpfilepath.gsub(/^.*\//,'')}"
+    plot.title "#{inpfilepath.gsub(/^.*\//,'').gsub(/\.bin$/, '').gsub(/_/, ' ')}"
     plot.xlabel "Reflectance 1"
     plot.ylabel "Reflectance 2"
 
-    plot.xrange "[0.0:1.3]"
-    plot.yrange "[0.0:0.6]"
+    plot.xrange "[0.0:#{lut.transpose(1,0).to_a[2].max + 0.1}]"
+    plot.yrange "[0.0:#{lut.transpose(1,0).to_a[3].max + 0.1}]"
 
     plot.set "key off"
 
@@ -93,7 +102,6 @@ Gnuplot.open do |gp|
 
       plot.data << Gnuplot::DataSet.new([pltref1, pltref2]) do |ds|
         ds.with = "lines"
-        ds.linewidth = 2
         ds.linecolor = "rgb \"##{format('%02x', rdclr)}#{format('%02x', grclr)}00\""
       end
       clr += 1
@@ -118,8 +126,7 @@ Gnuplot.open do |gp|
 
       plot.data << Gnuplot::DataSet.new([pltref1, pltref2]) do |ds|
         ds.with = "lines"
-        # ds.linestyle = 2
-        ds.linecolor = "black"
+        ds.linecolor = "rgb \"#999999\""
       end
     end
 
