@@ -35,7 +35,7 @@ program micore
   real(R4_) :: wrk(4)
 
   ! get commandline arguments
-  narg = 1
+  narg = 3
   argmsg = "Usage: micore lutfile obs_ref1 obs_ref2"
   call get_cmd_args(narg, argv, argmsg)
   read (argv(2), *) obs_ref(1)
