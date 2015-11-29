@@ -163,7 +163,7 @@ Gnuplot.open do |gp|
     if ref1 and ref2 then
       # plot observed reflectances
       plot.data << Gnuplot::DataSet.new([[ref1], [ref2]]) do |ds|
-        ds.with = "linespoints"
+        ds.with = "linespoints ls 1"
         ds.linecolor = "black"
       end
 
