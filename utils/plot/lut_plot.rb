@@ -21,13 +21,16 @@
 
 require 'narray'
 require 'gnuplot'
+require 'open3'
 
+MICORE_BIN = '../../src/micore'
 
 if ARGV.size < 2 then
   STDERR.puts <<heredoc
-Usage: ruby #{$0} input output numrecord
+Usage: ruby #{$0} input output numrecord [ref1] [ref2]
   input:  lut filename
   output: output png filename
+  ref1, ref2: reflectances (not required)
 heredoc
   exit
 end
@@ -35,6 +38,10 @@ end
 inpfilepath = ARGV[0]
 outfilepath = ARGV[1]
 
+if ARGV[2] and ARGV[3] then
+  ref1 = ARGV[2].to_f
+  ref2 = ARGV[3].to_f
+end
 
 if File.exist?(File.expand_path(inpfilepath)) then
   datafile = open(File.expand_path(inpfilepath), 'r+b')
@@ -45,6 +52,23 @@ if File.exist?(File.expand_path(inpfilepath)) then
 else
   puts "Error: There's no file."
   exit
+end
+
+# call MICO-RE
+micore_stdout, micore_status = Open3.capture2("#{MICORE_BIN} #{inpfilepath} #{ref1} #{ref2}")
+
+estimated_tau  = nil
+estimated_cder = nil
+estimated_cost = nil
+
+micore_stdout.each_line do |line|
+  if line =~ /^\s*TAU:/ then
+    estimated_tau = line.gsub(/^\s*TAU:\s*/,'').to_f
+  elsif line =~ /^\s*CDER:/ then
+    estimated_cder = line.gsub(/^\s*CDER:\s*/,'').to_f
+  elsif line =~ /^\s*COST:/ then
+    estimated_cost = line.gsub(/^\s*COST:\s*/,'').to_f
+  end
 end
 
 unqtaus  = lut.transpose(1,0).to_a[0].uniq
@@ -138,6 +162,18 @@ Gnuplot.open do |gp|
       end
     end
 
+    if ref1 and ref2 then
+      # plot observed reflectances
+      plot.data << Gnuplot::DataSet.new([[ref1], [ref2]]) do |ds|
+        ds.with = "linespoints"
+        ds.linecolor = "black"
+      end
+
+      # estimated tau, cder and cost
+      plot.set "label #{ilbl + 1} at first 0.01,#{lut.transpose(1,0).to_a[3].max + 0.08}  'TAU:  #{estimated_tau}'"
+      plot.set "label #{ilbl + 2} at first 0.01,#{lut.transpose(1,0).to_a[3].max + 0.03} 'CDER: #{estimated_cder}'"
+      plot.set "label #{ilbl + 3} at first 0.01,#{lut.transpose(1,0).to_a[3].max - 0.02} 'COST: #{estimated_cost}'"
+    end
   end
 end
 
