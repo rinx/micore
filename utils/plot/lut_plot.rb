@@ -16,6 +16,7 @@
 # Changelog:
 #   20151118: First version
 #   20151128: Add color and labels
+#   20151129: Revise line styles and save filetype
 #
 
 require 'narray'
