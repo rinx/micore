@@ -43,7 +43,7 @@ if File.exist?(File.expand_path(inpfilepath)) then
   tmpstr = datafile.read(4*4*numrecord)
   lut[true,true] = NArray.to_na(tmpstr, "sfloat", 4, numrecord)
 else
-  puts "There's no file."
+  puts "Error: There's no file."
   exit
 end
 
@@ -52,7 +52,7 @@ unqcders = lut.transpose(1,0).to_a[1].uniq
 
 Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
-    if outfilepath =~ /none/ then
+    if outfilepath =~ /^none$/ then
       plot.terminal 'x11'
     elsif outfilepath =~ /\.tex$/ then
       plot.terminal "tikz"
@@ -63,6 +63,9 @@ Gnuplot.open do |gp|
     elsif outfilepath =~ /\.png$/ then
       plot.terminal "png"
       plot.output File.expand_path(outfilepath)
+    else
+      puts "Error: unknown filetype"
+      exit
     end
 
     plot.title "#{inpfilepath.gsub(/^.*\//,'').gsub(/\.bin$/, '').gsub(/_/, ' ')}"
