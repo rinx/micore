@@ -27,14 +27,15 @@ module micore_core
   integer, parameter :: RD_ = selected_real_kind(13) ! higher  precision
   integer, parameter :: R4_ = selected_real_kind(6)  ! 4-byte real
 
-  real(R_), parameter :: NAPIER = 2.7182818284590452353602874711352
+  real(R_), parameter :: NAPIER = 2.7182818284590452353602874711352_R_
+  real(R_), parameter :: ASYM_G = 0.86_R_ ! asymmetry factor
 
   ! flag for verbose mode
   logical, parameter :: verbose_flag = .true.
 
   ! threshold value for convergence of cost function
-  real(R_), parameter :: threshold = 1e-10_R_
-  real(R_), parameter :: diff_thre = 1e-10_R_
+  real(R_), parameter :: threshold = 1e-13_R_
+  real(R_), parameter :: diff_thre = 1e-13_R_
   ! max # of iteration
   integer, parameter :: max_iter = 9999
   ! max and min of tau and cder
@@ -293,7 +294,7 @@ contains
     real(R_) :: tau
     real(R_) :: nonlin_conv_tau
 
-    nonlin_conv_tau = log(tau)
+    nonlin_conv_tau = ((1 - ASYM_G) * tau) / (1 + (1 - ASYM_G) * tau)
   end function nonlin_conv_tau
 
   function nonlin_conv_cder(cder)
@@ -308,7 +309,7 @@ contains
     real(R_) :: dx
     real(R_) :: inv_nonlin_conv_tau
 
-    inv_nonlin_conv_tau = NAPIER ** (ltau + dx)
+    inv_nonlin_conv_tau = (ltau + dx) / ((1 - ASYM_G) * (1 - (ltau + dx)))
   end function inv_nonlin_conv_tau
 
   function inv_nonlin_conv_cder(lcder, dx)
