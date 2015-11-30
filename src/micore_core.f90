@@ -301,7 +301,7 @@ contains
     real(R_) :: cder
     real(R_) :: nonlin_conv_cder
 
-    nonlin_conv_cder = log(cder)
+    nonlin_conv_cder = sqrt(cder)
   end function nonlin_conv_cder
 
   function inv_nonlin_conv_tau(ltau, dx)
@@ -317,7 +317,7 @@ contains
     real(R_) :: dx
     real(R_) :: inv_nonlin_conv_cder
 
-    inv_nonlin_conv_cder = NAPIER ** (lcder + dx)
+    inv_nonlin_conv_cder = (lcder + dx) ** 2
   end function inv_nonlin_conv_cder
 
   ! 1D-linear algebra solver for limited case (only for 2x2-matrix)
