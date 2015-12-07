@@ -54,7 +54,7 @@ ex.)
 
 This file should be given as a binary format.
 
-An example of LUT is `example/lut_860_2130.bin`.
+An example of LUT is `example/lut_860_2130.bin` (SZA:30deg, VZA:30deg, RAA:0deg).
 
 You can see the details by a command:
 
