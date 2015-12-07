@@ -1,9 +1,9 @@
 *
 
-!Makefile
 !README.md
 !LICENSE
 !src
+!src/Makefile
 !src/*.f90
 !.gitignore
 !example
