@@ -5,7 +5,7 @@ Minimal Implementation of Cloud Optical Retrieval
 
 MICO-RE estimates cloud optical thickness (COT) and
 cloud droplet effective radius (CDER) from reflectances in two wavelengths
-by using look-up table (Nakajima and King, 1990) and Gauss-Newton method.  
+by using look-up table (Nakajima and King, 1990) and Gauss-Newton method (Rodgers, 2000).  
 Akima method (Akima, 1970) is used as a method of interpolation.
 
 
@@ -78,5 +78,6 @@ References
 ---
 
 * [Teruyuki Nakajima and Michael D. King, 1990: Determination of the Optical Thickness and Effective Particle Radius of Clouds from Reflected Solar Radiation Measurements. Part I: Theory. J. Atmos. Sci., 47, 1878–1893.](http://journals.ametsoc.org/doi/abs/10.1175/1520-0469(1990)047%3C1878%3ADOTOTA%3E2.0.CO%3B2)
+* [Rodgers, C. D., 2000: Inverse Methods for Atmospheric Sounding-Theory and Practice.](http://www.worldscientific.com/worldscibooks/10.1142/3171)
 * [Hiroshi Akima, 1970: A new method of interpolation and smooth curve fitting based on local procedures. JACM, 17.4, 589–602.](http://dl.acm.org/citation.cfm?id=321609)
 
