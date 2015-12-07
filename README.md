@@ -5,7 +5,9 @@ Minimal Implementation of Cloud Optical Retrieval
 
 MICO-RE estimates cloud optical thickness (COT) and
 cloud droplet effective radius (CDER) from reflectances in two wavelengths
-by using look-up table (Nakajima and King, 1990) and Gauss-Newton method.
+by using look-up table (Nakajima and King, 1990) and Gauss-Newton method.  
+Akima method (Akima, 1970) is used as a method of interpolation.
+
 
 Cloud Optical Retrieval Code
 ---
@@ -25,7 +27,7 @@ You can change your compiler setting in the `Makefile` (The default compiler is 
 
 like following:
 
-    $ ./micore ../example/lut_860_2160.bin 0.553 0.343
+    $ ./micore ../example/lut_860_2130.bin 0.553 0.343
 
 
 Look-up table
@@ -52,6 +54,13 @@ ex.)
 
 This file should be given as a binary format.
 
+An example of LUT is `example/lut_860_2130.bin`.
+
+You can see the details by a command:
+
+    $ od -f example/lut_860_2130.bin | less
+
+LUT should be calculated by radiative transfer models (ex. RSTAR).
 
 Utils
 ---
@@ -59,6 +68,10 @@ Utils
 * lut\_plot.rb
 
 make a Nakajima-King-like plot of the look-up table.
+
+It makes a plot like following:
+
+![example](example/example.png)
 
 
 References
