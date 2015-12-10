@@ -29,6 +29,25 @@ like following:
 
     $ ./micore ../example/lut_860_2130.bin 0.553 0.343
 
+If you enable the verbose flag (please read the part of tuning),
+the output is composed by:
+
+* observed reflectances,
+* loaded LUT,
+* for each iterate step,
+    - estimated cloud parameters,
+    - estimated reflectances,
+    - cost,
+* final cloud parameters and cost.
+
+Final cloud parameters and cost are printed like:
+
+```
+ TAU:     13.206873367078288
+ CDER:    6.2165327975806086
+ COST:    1.1572150238204060E-020
+```
+
 
 Look-up table
 ---
@@ -62,6 +81,7 @@ You can see the details by a command:
 
 LUT should be calculated by radiative transfer models (ex. RSTAR).
 
+
 Utils
 ---
 
@@ -75,6 +95,30 @@ make a Nakajima-King-like plot of the look-up table.
 It makes a plot like following:
 
 ![example](example/example.png)
+
+
+Tuning
+---
+
+There are some technical parameters in the header of `micore_core.f90`.
+
+``` fortran
+  ! flag for verbose mode
+  logical, parameter :: verbose_flag = .true.
+
+  ! threshold value for convergence of cost function
+  real(R_), parameter :: threshold = 1e-13_R_
+  real(R_), parameter :: diff_thre = 1e-13_R_
+  ! max # of iteration
+  integer, parameter :: max_iter = 9999
+  ! max and min of tau and cder
+  real(R_), parameter :: tau_max  = 150.0_R_
+  real(R_), parameter :: tau_min  = 0.3_R_
+  real(R_), parameter :: cder_max = 35.0_R_
+  real(R_), parameter :: cder_min = 1.0_R_
+```
+
+You can modify these parameters as you like before compiling.
 
 
 References
