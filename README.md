@@ -71,7 +71,8 @@ ex.)
 | ... | ...  | ...  | ...  |
 
 
-This file should be given as a binary format.
+This file should be given as a binary format.  
+The data should be sorted like above.
 
 An example of LUT is `example/lut_860_2130.bin` (SZA:30deg, VZA:30deg, RAA:0deg).
 
