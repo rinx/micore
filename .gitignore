@@ -11,5 +11,6 @@
 !utils
 !utils/plot
 !utils/plot/lut_plot.rb
-
+!utils/micore_tester
+!utils/micore_tester/micore_tester.rb
 
