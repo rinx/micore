@@ -39,7 +39,7 @@ CDER_MIN = 5.0
 CDER_MAX = 32.0
 
 DEF_N_SAMPLE = 100
-BIN_RESOLUTION = 10
+BIN_RESOLUTION = 20
 
 params = ARGV.getopts('o:', 'n:')
 
