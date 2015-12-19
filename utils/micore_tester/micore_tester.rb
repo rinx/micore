@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #
-# micore_wrapper.rb
+# micore_tester.rb
 #
 # Author: Rintaro Okamura
 #
