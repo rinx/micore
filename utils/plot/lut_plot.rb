@@ -79,13 +79,13 @@ Gnuplot.open do |gp|
     case outfilepath
     when /^none$/
       plot.terminal 'x11'
-    when /\.tex$/ then
+    when /\.tex$/
       plot.terminal "tikz"
       plot.output File.expand_path(outfilepath)
-    when /\.pdf$/ then
+    when /\.pdf$/
       plot.terminal "pdf"
       plot.output File.expand_path(outfilepath)
-    when /\.png$/ then
+    when /\.png$/
       plot.terminal "png"
       plot.output File.expand_path(outfilepath)
     else
