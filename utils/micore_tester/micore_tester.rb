@@ -41,12 +41,13 @@ CDER_MAX = 32.0
 DEF_N_SAMPLE = 100
 BIN_RESOLUTION = 20
 
-params = ARGV.getopts('o:', 'n:')
+params = ARGV.getopts('o:', 'p:', 'n:')
 
 if ARGV.size < 1 then
   STDERR.puts <<heredoc
-Usage: ruby #{$0} [-o output] [-n number] lutfile
-  [-o output]: output png filename (png, pdf, or tex)
+Usage: ruby #{$0} [-o txtname] [-p picname] [-n number] lutfile
+  [-o txtname]: output txt filename.
+  [-p picname]: output png filename (png, pdf, or tex).
   [-n number]: # of sample (default: #{DEF_N_SAMPLE}).
   lutfile: LUT binary file.
 heredoc
@@ -119,7 +120,8 @@ end
 
 lutfilepath = ARGV[0]
 outfilepath = params['o']
-outfilepath ||= "none"
+picfilepath = params['p']
+picfilepath ||= "none"
 nsample = params['n']
 nsample ||= DEF_N_SAMPLE
 nsample = nsample.to_i
@@ -211,24 +213,33 @@ nx.times do |ix|
   end
 end
 
+# write output
+if outfilepath
+  File.open(outfilepath, "w") do |f|
+    f.puts "# obs_tau, obs_cder, ref1, ref2, est_tau, est_cder, est_cost, diff_tau, diff_cder"
+    nsample.times do |i|
+      f.puts "#{obs_tau[i]}, #{obs_cder[i]}, #{ref1[i]}, #{ref2[i]}, #{est_tau[i]}, #{est_cder[i]}, #{est_cost[i]}, #{diff_tau[i]}, #{diff_cder[i]}"
+    end
+  end
+end
 
 # make plot
 Gnuplot.open do |gp|
   SPlot.new(gp) do |plot|
     STDOUT.puts "plotting..."
 
-    case outfilepath
+    case picfilepath
     when /^none$/
       plot.terminal 'x11'
     when /\.tex$/
       plot.terminal "tikz"
-      plot.output File.expand_path(outfilepath)
+      plot.output File.expand_path(picfilepath)
     when /\.pdf$/
       plot.terminal "pdf"
-      plot.output File.expand_path(outfilepath)
+      plot.output File.expand_path(picfilepath)
     when /\.png$/
       plot.terminal "png"
-      plot.output File.expand_path(outfilepath)
+      plot.output File.expand_path(picfilepath)
     else
       STDERR.puts "Error: unknown filetype"
       exit
