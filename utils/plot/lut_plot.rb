@@ -76,15 +76,16 @@ unqcders = lut.transpose(1,0).to_a[1].uniq
 
 Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
-    if outfilepath =~ /^none$/ then
+    case outfilepath
+    when /^none$/
       plot.terminal 'x11'
-    elsif outfilepath =~ /\.tex$/ then
+    when /\.tex$/ then
       plot.terminal "tikz"
       plot.output File.expand_path(outfilepath)
-    elsif outfilepath =~ /\.pdf$/ then
+    when /\.pdf$/ then
       plot.terminal "pdf"
       plot.output File.expand_path(outfilepath)
-    elsif outfilepath =~ /\.png$/ then
+    when /\.png$/ then
       plot.terminal "png"
       plot.output File.expand_path(outfilepath)
     else
