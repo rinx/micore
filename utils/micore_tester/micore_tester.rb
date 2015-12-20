@@ -41,14 +41,16 @@ CDER_MAX = 32.0
 DEF_N_SAMPLE = 100
 BIN_RESOLUTION = 20
 
-params = ARGV.getopts('o:', 'p:', 'n:')
+params = ARGV.getopts('i:', 'o:', 'p:', 'n:', 'r:')
 
 if ARGV.size < 1 then
   STDERR.puts <<heredoc
-Usage: ruby #{$0} [-o txtname] [-p picname] [-n number] lutfile
+Usage: ruby #{$0} [-i inpfile] [-o txtname] [-p picname] [-n number] [-r resolution] lutfile
+  [-i inpfile]: input txt filename.
   [-o txtname]: output txt filename.
   [-p picname]: output png filename (png, pdf, or tex).
   [-n number]: # of sample (default: #{DEF_N_SAMPLE}).
+  [-r resolution]: resolution (default: #{BIN_RESOLUTION}).
   lutfile: LUT binary file.
 heredoc
   exit
@@ -119,12 +121,16 @@ class Array
 end
 
 lutfilepath = ARGV[0]
+inpfilepath = params['i']
 outfilepath = params['o']
 picfilepath = params['p']
 picfilepath ||= "none"
 nsample = params['n']
 nsample ||= DEF_N_SAMPLE
 nsample = nsample.to_i
+binres = params['r']
+binres ||= BIN_RESOLUTION
+binres = binres.to_i
 
 # check LUT file
 unless File.exist?(File.expand_path(lutfilepath)) then
@@ -142,42 +148,62 @@ est_cder = NArray.sfloat(nsample)
 est_cost = NArray.sfloat(nsample)
 
 # generate random cloud properties
-STDOUT.puts "Generating random taus and cders..."
-obs_tau.random!(TAU_MAX - TAU_MIN)
-obs_cder.random!(CDER_MAX - CDER_MIN)
-obs_tau  = obs_tau + TAU_MIN
-obs_cder = obs_cder + CDER_MIN
+if inpfilepath
+  unless File.exist?(File.expand_path(inpfilepath)) then
+    STDERR.puts "#{inpfilepath} doesn't exist."
+    exit
+  end
+  STDOUT.puts "Loading #{inpfilepath}"
 
-nsample.times do |i|
-  STDOUT.puts "RTM calculation #{i}: started"
-  # RTM calculation
-  rtm_stdout, rtm_status = Open3.capture2("#{RTM_BIN} #{obs_tau[i]} #{obs_cder[i]}")
-  STDOUT.puts "RTM calculation #{i}: finished"
-
-  # parse RTM output
-  rtm_stdout.each_line do |line|
-    case line
-    when /^\s*REF1:/
-      ref1[i] = line.gsub(/^\s*REF1:\s*/,'').to_f
-    when /^\s*REF2:/
-      ref2[i] = line.gsub(/^\s*REF2:\s*/,'').to_f
+  File.open(File.expand_path(inpfilepath), 'r') do |f|
+    i = 0
+    f.each_line do |l|
+      unless l =~ /^\s*#/ then
+        obs_tau[i], obs_cder[i], ref1[i], ref2[i],
+          est_tau[i], est_cder[i], est_cost[i],
+          dummy1, dummy2 = l.split(/\s*,\s*/).map {|x| x.to_f}
+        i += 1
+      end
     end
   end
+else
+  STDOUT.puts "Generating random taus and cders..."
+  obs_tau.random!(TAU_MAX - TAU_MIN)
+  obs_cder.random!(CDER_MAX - CDER_MIN)
+  obs_tau  = obs_tau + TAU_MIN
+  obs_cder = obs_cder + CDER_MIN
 
-  # MICO-RE calculation
-  STDOUT.puts "MICO-RE calculation #{i}: started"
-  micore_stdout, micore_status = Open3.capture2("#{MICORE_BIN} #{lutfilepath} #{ref1[i]} #{ref2[i]}")
-  STDOUT.puts "MICO-RE calculation #{i}: finished"
+  nsample.times do |i|
+    STDOUT.puts "RTM calculation #{i}: started"
+    # RTM calculation
+    rtm_stdout, rtm_status = Open3.capture2("#{RTM_BIN} #{obs_tau[i]} #{obs_cder[i]}")
+    STDOUT.puts "RTM calculation #{i}: finished"
 
-  # parse MICO-RE output
-  micore_stdout.each_line do |line|
-    case line
-    when /^\s*TAU:/
-      est_tau[i]  = line.gsub(/^\s*TAU:\s*/,'').to_f
-    when /^\s*CDER:/
-      est_cder[i] = line.gsub(/^\s*CDER:\s*/,'').to_f
-    when /^\s*COST:/
-      est_cost[i] = line.gsub(/^\s*COST:\s*/,'').to_f
+    # parse RTM output
+    rtm_stdout.each_line do |line|
+      case line
+      when /^\s*REF1:/
+        ref1[i] = line.gsub(/^\s*REF1:\s*/,'').to_f
+      when /^\s*REF2:/
+        ref2[i] = line.gsub(/^\s*REF2:\s*/,'').to_f
+      end
+    end
+
+    # MICO-RE calculation
+    STDOUT.puts "MICO-RE calculation #{i}: started"
+    micore_stdout, micore_status = Open3.capture2("#{MICORE_BIN} #{lutfilepath} #{ref1[i]} #{ref2[i]}")
+    STDOUT.puts "MICO-RE calculation #{i}: finished"
+
+    # parse MICO-RE output
+    micore_stdout.each_line do |line|
+      case line
+      when /^\s*TAU:/
+        est_tau[i]  = line.gsub(/^\s*TAU:\s*/,'').to_f
+      when /^\s*CDER:/
+        est_cder[i] = line.gsub(/^\s*CDER:\s*/,'').to_f
+      when /^\s*COST:/
+        est_cost[i] = line.gsub(/^\s*COST:\s*/,'').to_f
+      end
     end
   end
 end
@@ -191,20 +217,20 @@ absmax_tau  = diff_tau.abs.max
 absmax_cder = diff_cder.abs.max
 
 # calculate 2d histogram
-nx = BIN_RESOLUTION + 1
-ny = BIN_RESOLUTION + 1
-interval_x = (2 * absmax_tau  / BIN_RESOLUTION)
-interval_y = (2 * absmax_cder / BIN_RESOLUTION)
+nx = binres + 1
+ny = binres + 1
+interval_x = (2 * absmax_tau  / binres)
+interval_y = (2 * absmax_cder / binres)
 dx = interval_x / 2
 dy = interval_y / 2
 x = []
 y = []
-(BIN_RESOLUTION + 1).times do |i|
+(binres + 1).times do |i|
   x.push(absmax_tau  * (-1) + interval_x * i)
   y.push(absmax_cder * (-1) + interval_y * i)
 end
 
-hist = Array.new(BIN_RESOLUTION + 1).map{Array.new(BIN_RESOLUTION + 1, 0)}
+hist = Array.new(binres + 1).map{Array.new(binres + 1, 0)}
 nx.times do |ix|
   ny.times do |iy|
     insidebin_tau_index  = ((diff_tau  >= (x[ix] - dx)).where.to_a & (diff_tau  < (x[ix] + dx)).where.to_a)
@@ -245,7 +271,7 @@ Gnuplot.open do |gp|
       exit
     end
 
-    plot.title "differences between estimation and observation"
+    plot.title "differences between estimation and observation (n: #{nsample})"
 
     plot.xlabel "tau(est) - tau(obs)"
     plot.ylabel "cder(est) - cder(obs)"
@@ -259,7 +285,8 @@ Gnuplot.open do |gp|
     plot.xrange "[-#{absmax_tau}:#{absmax_tau}]"
     plot.yrange "[-#{absmax_cder}:#{absmax_cder}]"
 
-    plot.cbrange "[0:#{hist.flatten.max}]"
+    plot.cbrange "[1:#{hist.flatten.max}]"
+    plot.set "logscale cb"
 
     plot.set "palette defined ( 0 '#000090', 1 '#000fff', 2 '#0090ff', 3 '#0fffee', 4 '#90ff70', 5 '#ffee00', 6 '#ff7000', 7 '#ee0000', 8 '#7f0000')"
 
