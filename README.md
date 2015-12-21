@@ -87,8 +87,9 @@ Utils
 ---
 
 * lut\_plot.rb
+* micore\_tester.rb
 
-make a Nakajima-King-like plot of the look-up table.
+`lut_plot.rb` makes a Nakajima-King-like plot of the look-up table.
 
     $ ruby lut_plot.rb ../../example/lut_860_2130.bin only_lut.png
     $ ruby lut_plot.rb ../../example/lut_860_2130.bin with_point.png 0.55 0.45
@@ -97,6 +98,10 @@ It makes a plot like following:
 
 ![example](example/example.png)
 
+`micore_tester.rb` makes a 2D histogram which represents
+differences between true and estimated cloud properties like following:
+
+![example2](example/example2.png)
 
 Tuning
 ---
