@@ -99,7 +99,8 @@ It makes a plot like following:
 ![example](example/example.png)
 
 `micore_tester.rb` makes a 2D histogram which represents
-differences between true and estimated cloud properties like following:
+differences between true and estimated cloud properties
+from random-generated cloud properties like following:
 
 ![example2](example/example2.png)
 
