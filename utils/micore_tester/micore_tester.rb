@@ -264,7 +264,7 @@ Gnuplot.open do |gp|
       plot.terminal "pdf"
       plot.output File.expand_path(picfilepath)
     when /\.png$/
-      plot.terminal "png"
+      plot.terminal "pngcairo"
       plot.output File.expand_path(picfilepath)
     else
       STDERR.puts "Error: unknown filetype"
