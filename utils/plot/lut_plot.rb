@@ -17,6 +17,7 @@
 #   20151118: First version
 #   20151128: Add color and labels
 #   20151129: Revise line styles and save filetype
+#   20160117: Add surface albedo
 #
 
 require 'narray'
@@ -27,9 +28,10 @@ MICORE_BIN = '../../src/micore'
 
 if ARGV.size < 2 then
   STDERR.puts <<heredoc
-Usage: ruby #{$0} input output numrecord [ref1] [ref2]
+Usage: ruby #{$0} input output [albedo] [ref1] [ref2]
   input:  lut filename
   output: output png filename
+  albedo: surface albedo (not required)
   ref1, ref2: reflectances (not required)
 heredoc
   exit
@@ -38,9 +40,10 @@ end
 inpfilepath = ARGV[0]
 outfilepath = ARGV[1]
 
-if ARGV[2] and ARGV[3] then
-  ref1 = ARGV[2].to_f
-  ref2 = ARGV[3].to_f
+if ARGV[2] and ARGV[3] and ARGV[4] then
+  albedo = ARGV[2].to_f
+  ref1   = ARGV[3].to_f
+  ref2   = ARGV[4].to_f
 end
 
 if File.exist?(File.expand_path(inpfilepath)) then
@@ -55,7 +58,7 @@ else
 end
 
 # call MICO-RE
-micore_stdout, micore_status = Open3.capture2("#{MICORE_BIN} #{inpfilepath} #{ref1} #{ref2}")
+micore_stdout, micore_status = Open3.capture2("#{MICORE_BIN} #{inpfilepath} #{albedo} #{ref1} #{ref2}")
 
 estimated_tau  = nil
 estimated_cder = nil
@@ -70,6 +73,9 @@ micore_stdout.each_line do |line|
     estimated_cost = line.gsub(/^\s*COST:\s*/,'').to_f
   end
 end
+
+lut[2, true] = lut[2, true] + albedo
+lut[3, true] = lut[3, true] + albedo
 
 unqtaus  = lut.transpose(1,0).to_a[0].uniq
 unqcders = lut.transpose(1,0).to_a[1].uniq

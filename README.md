@@ -23,11 +23,11 @@ You can change your compiler setting in the `Makefile` (The default compiler is 
 
 ### Usage
 
-    $ ./micore [lutfile] [reflectance1] [reflectance2]
+    $ ./micore [lutfile] [surface_albedo] [reflectance1] [reflectance2]
 
 like following:
 
-    $ ./micore ../example/lut_860_2130.bin 0.553 0.343
+    $ ./micore ../example/lut_860_2130.bin 0.0 0.553 0.343
 
 If you enable the verbose flag (please read the part of tuning),
 the output is composed by:
@@ -92,7 +92,7 @@ Utils
 `lut_plot.rb` makes a Nakajima-King-like plot of the look-up table.
 
     $ ruby lut_plot.rb ../../example/lut_860_2130.bin only_lut.png
-    $ ruby lut_plot.rb ../../example/lut_860_2130.bin with_point.png 0.55 0.45
+    $ ruby lut_plot.rb ../../example/lut_860_2130.bin with_point.png 0.0 0.55 0.45
 
 It makes a plot like following:
 

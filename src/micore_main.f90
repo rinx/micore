@@ -14,6 +14,7 @@
 !
 ! ChangeLog
 !   20151127 : First Version
+!   20160117 : Add surface_albedo
 !
 
 program micore
@@ -23,23 +24,25 @@ program micore
 
   integer, parameter :: IUI = 10
 
-  character(256) :: argv(3)
+  character(256) :: argv(4)
   character(512) :: argmsg
   integer :: narg
   integer :: irecl, ios, i, ivar, cnt
 
   real(R_), allocatable :: lut(:,:)
+  real(R_) :: surface_albedo
   real(R_) :: obs_ref(2)
   real(R_) :: tau, cder
   real(R_) :: cost
   real(R4_) :: wrk(4)
 
   ! get commandline arguments
-  narg = 3
-  argmsg = "Usage: micore lutfile obs_ref1 obs_ref2"
+  narg = 4
+  argmsg = "Usage: micore lutfile surface_albedo obs_ref1 obs_ref2"
   call get_cmd_args(narg, argv, argmsg)
-  read (argv(2), *) obs_ref(1)
-  read (argv(3), *) obs_ref(2)
+  read (argv(2), *) surface_albedo
+  read (argv(3), *) obs_ref(1)
+  read (argv(4), *) obs_ref(2)
 
   ! debug
   if (verbose_flag) then
@@ -67,6 +70,12 @@ program micore
     if (ios /= 0) exit
     lut(i,:) = wrk(:)
   end do
+
+  if (verbose_flag) then
+    write (*,*) "# surface albedo: ", surface_albedo
+  end if
+  lut(:, 3) = lut(:, 3) + surface_albedo
+  lut(:, 4) = lut(:, 4) + surface_albedo
 
   if (verbose_flag) then
     write (*,*) "# Look-up table"

@@ -191,7 +191,7 @@ else
 
     # MICO-RE calculation
     STDOUT.puts "MICO-RE calculation #{i}: started"
-    micore_stdout, micore_status = Open3.capture2("#{MICORE_BIN} #{lutfilepath} #{ref1[i]} #{ref2[i]}")
+    micore_stdout, micore_status = Open3.capture2("#{MICORE_BIN} #{lutfilepath} 0.0 #{ref1[i]} #{ref2[i]}")
     STDOUT.puts "MICO-RE calculation #{i}: finished"
 
     # parse MICO-RE output
