@@ -169,7 +169,7 @@ Gnuplot.open do |gp|
       # plot observed reflectances
       plot.data << Gnuplot::DataSet.new([[ref1], [ref2]]) do |ds|
         ds.with = "points pointtype 1"
-        ds.linecolor = "black"
+        ds.linecolor = "rgb \"#000000\""
       end
 
       # estimated tau, cder and cost
