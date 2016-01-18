@@ -91,7 +91,6 @@ Utils
 
 `lut_plot.rb` makes a Nakajima-King-like plot of the look-up table.
 
-    $ ruby lut_plot.rb ../../example/lut_860_2130.bin only_lut.png
     $ ruby lut_plot.rb ../../example/lut_860_2130.bin with_point.png 0.0 0.55 0.45
 
 It makes a plot like following:

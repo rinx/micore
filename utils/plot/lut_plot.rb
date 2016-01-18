@@ -26,13 +26,13 @@ require 'open3'
 
 MICORE_BIN = '../../src/micore'
 
-if ARGV.size < 2 then
+if ARGV.size < 5 then
   STDERR.puts <<heredoc
-Usage: ruby #{$0} input output [albedo] [ref1] [ref2]
+Usage: ruby #{$0} input output albedo ref1 ref2
   input:  lut filename
   output: output png filename
-  albedo: surface albedo (not required)
-  ref1, ref2: reflectances (not required)
+  albedo: surface albedo
+  ref1, ref2: reflectances
 heredoc
   exit
 end
@@ -40,11 +40,9 @@ end
 inpfilepath = ARGV[0]
 outfilepath = ARGV[1]
 
-if ARGV[2] and ARGV[3] and ARGV[4] then
-  albedo = ARGV[2].to_f
-  ref1   = ARGV[3].to_f
-  ref2   = ARGV[4].to_f
-end
+albedo = ARGV[2].to_f
+ref1   = ARGV[3].to_f
+ref2   = ARGV[4].to_f
 
 if File.exist?(File.expand_path(inpfilepath)) then
   datafile = open(File.expand_path(inpfilepath), 'r+b')
