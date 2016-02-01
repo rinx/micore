@@ -1,6 +1,6 @@
 MICO-RE
 ===
-MICO-RE 【miko-li】  
+MICO-RE 【miko-li / ミコリ】  
 Minimal Implementation of Cloud Optical Retrieval
 
 MICO-RE estimates cloud optical thickness (COT) and
