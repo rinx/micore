@@ -279,11 +279,11 @@ Gnuplot.open do |gp|
 
     plot.set "key off"
 
-    plot.set "pm3d map"
+    plot.set "view map"
     plot.set "size square"
 
-    plot.xrange "[-#{absmax_tau}:#{absmax_tau}]"
-    plot.yrange "[-#{absmax_cder}:#{absmax_cder}]"
+    plot.xrange "[-#{absmax_tau  - 0.5}:#{absmax_tau  + 0.5}]"
+    plot.yrange "[-#{absmax_cder - 0.5}:#{absmax_cder + 0.5}]"
 
     plot.cbrange "[1:#{hist.flatten.max}]"
     plot.set "logscale cb"
