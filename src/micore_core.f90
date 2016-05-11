@@ -441,6 +441,10 @@ contains
     call akima_withK(intp_cder, tmp_ref(:,1), lcder, tmp_ref1(1), k(1,2))
     call akima_withK(intp_cder, tmp_ref(:,2), lcder, tmp_ref1(2), k(2,2))
 
+    ! mean value of two different order of interpolations
+    est_refs(1) = (est_refs(1) + tmp_ref1(1)) / 2
+    est_refs(2) = (est_refs(2) + tmp_ref1(2)) / 2
+
     deallocate (unq_tau, unq_cder)
   end subroutine estimate_refs
 

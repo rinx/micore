@@ -126,6 +126,13 @@ There are some technical parameters in the header of `micore_core.f90`.
 
 You can modify these parameters as you like before compiling.
 
+Remarks
+---
+
+It is founded that the Akima interpolation cannot be applied to multi-dimensional data set
+because the result of multi-dimensional interpolation depends on the order of interpolation.
+However, on estimation of cloud properties, the effect doesn't affect so much.
+In this code, the mean result of two different order of interpolation is used.
 
 References
 ---
