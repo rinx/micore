@@ -103,6 +103,8 @@ from random-generated cloud properties like following:
 
 ![example2](example/example2.png)
 
+These scripts require 'gnuplot gem' and 'narray gem'.
+
 Tuning
 ---
 
