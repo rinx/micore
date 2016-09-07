@@ -274,9 +274,10 @@ contains
   end function akima_derv
 
   ! separate look-up table into several vectors
-  subroutine separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
+  subroutine separate_lut(lut, lut_refs1, lut_refs2, lut_refs3, tau_arr, cder_arr)
     real(R_), intent(in)  :: lut(:,:)
     real(R_), intent(out) :: lut_refs1(:), lut_refs2(:) ! reflectances of lut
+    real(R_), intent(out) :: lut_refs3(:)
     real(R_), intent(out) :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
     integer :: i, lutsize
 
@@ -287,6 +288,7 @@ contains
       cder_arr(i)  = lut(i, 2)
       lut_refs1(i) = lut(i, 3)
       lut_refs2(i) = lut(i, 4)
+      lut_refs3(i) = lut(i, 5)
     end do
   end subroutine separate_lut
 
@@ -340,30 +342,32 @@ contains
   end function solve_1Dlinalg_choles
 
   ! estimate initial tau and cder by least square method
-  function estimate_initial_values(lut_refs1, lut_refs2, tau_arr, cder_arr, obs_ref)
+  function estimate_initial_values(lut_refs1, lut_refs2, lut_refs3, tau_arr, cder_arr, obs_ref)
     real(R_) :: lut_refs1(:), lut_refs2(:) ! reflectances of lut
+    real(R_) :: lut_refs3(:)
     real(R_) :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
     real(R_) :: obs_ref(:)
     real(R_) :: estimate_initial_values(2)
     integer :: minind
 
-    minind = minloc((lut_refs1 - obs_ref(1))**2 + (lut_refs2 - obs_ref(2))**2, 1)
+    minind = minloc((lut_refs1 - obs_ref(1))**2 + (lut_refs2 - obs_ref(2))**2 + (lut_refs3 - obs_ref(3))**2, 1)
 
     estimate_initial_values(1) = tau_arr(minind)
     estimate_initial_values(2) = cder_arr(minind)
   end function estimate_initial_values
 
   ! estimate reflectances from cloud properties by using look-up table
-  subroutine estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, tau, cder, est_refs, k)
+  subroutine estimate_refs(lut_refs1, lut_refs2, lut_refs3, tau_arr, cder_arr, tau, cder, est_refs, k)
     real(R_), intent(in)  :: lut_refs1(:), lut_refs2(:) ! reflectances of lut
+    real(R_), intent(in)  :: lut_refs3(:)
     real(R_), intent(in)  :: tau_arr(:), cder_arr(:)    ! tau and cder in lut
     real(R_), intent(in)  :: tau, cder
-    real(R_), intent(out) :: est_refs(2)
-    real(R_), intent(out) :: k(2,2) ! Jacobian matrix
+    real(R_), intent(out) :: est_refs(3)
+    real(R_), intent(out) :: k(3,2) ! Jacobian matrix
     real(R_), allocatable :: unq_tau(:), unq_cder(:) ! unique tau and cder
     real(R_) :: intp_tau(5), intp_cder(5)
-    real(R_) :: tmp_ref1(5), tmp_ref2(5)
-    real(R_) :: tmp_ref(5,2)
+    real(R_) :: tmp_ref1(5), tmp_ref2(5), tmp_ref3(5)
+    real(R_) :: tmp_ref(5,3)
     integer  :: itau, icder
     real(R_) :: ltau, lcder
     real(R_) :: rat
@@ -417,33 +421,40 @@ contains
       do j = 1, 5
         tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+i-4) + (icder+j-3))
         tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+i-4) + (icder+j-3))
+        tmp_ref3(j) = lut_refs3(size(unq_cder) * (itau+i-4) + (icder+j-3))
       end do
       tmp_ref(i,1) = akima_intp(intp_cder, tmp_ref1, lcder)
       tmp_ref(i,2) = akima_intp(intp_cder, tmp_ref2, lcder)
+      tmp_ref(i,3) = akima_intp(intp_cder, tmp_ref3, lcder)
     end do
 
     ! interpolation with TAU
     call akima_withK(intp_tau, tmp_ref(:,1), ltau, est_refs(1), k(1,1))
     call akima_withK(intp_tau, tmp_ref(:,2), ltau, est_refs(2), k(2,1))
+    call akima_withK(intp_tau, tmp_ref(:,3), ltau, est_refs(3), k(3,1))
 
     ! interpolation with TAU
     do i = 1, 5
       do j = 1, 5
         tmp_ref1(j) = lut_refs1(size(unq_cder) * (itau+j-4) + (icder+i-3))
         tmp_ref2(j) = lut_refs2(size(unq_cder) * (itau+j-4) + (icder+i-3))
+        tmp_ref3(j) = lut_refs3(size(unq_cder) * (itau+j-4) + (icder+i-3))
       end do
       tmp_ref(i,1) = akima_intp(intp_tau, tmp_ref1, ltau)
       tmp_ref(i,2) = akima_intp(intp_tau, tmp_ref2, ltau)
+      tmp_ref(i,3) = akima_intp(intp_tau, tmp_ref3, ltau)
     end do
 
     ! interpolation with CDER
-    ! tmp_ref1 is for dummy
+    ! tmp_ref1 is for dummy / these are for obtain k(:,2)
     call akima_withK(intp_cder, tmp_ref(:,1), lcder, tmp_ref1(1), k(1,2))
     call akima_withK(intp_cder, tmp_ref(:,2), lcder, tmp_ref1(2), k(2,2))
+    call akima_withK(intp_cder, tmp_ref(:,3), lcder, tmp_ref1(3), k(3,2))
 
-    ! mean value of two different order of interpolations
-    est_refs(1) = (est_refs(1) + tmp_ref1(1)) / 2
-    est_refs(2) = (est_refs(2) + tmp_ref1(2)) / 2
+     ! mean value of two different order of interpolations
+     est_refs(1) = (est_refs(1) + tmp_ref1(1)) / 2
+     est_refs(2) = (est_refs(2) + tmp_ref1(2)) / 2
+     est_refs(3) = (est_refs(3) + tmp_ref1(3)) / 2
 
     deallocate (unq_tau, unq_cder)
   end subroutine estimate_refs
@@ -455,17 +466,17 @@ contains
     real(R_) :: est_ref(:)
     real(R_) :: cost_func
 
-    cost_func = (obs_ref(1) - est_ref(1))**2 + (obs_ref(2) - est_ref(2))**2
+    cost_func = (obs_ref(1) - est_ref(1))**2 + (obs_ref(2) - est_ref(2))**2 + (obs_ref(3) - est_ref(3))**2
   end function cost_func
 
   ! update cloud properties
   function update_cloud_properties(obs_ref, est_ref, cps, k)
-    real(R_) :: obs_ref(2), est_ref(2)
+    real(R_) :: obs_ref(:), est_ref(:)
     real(R_) :: cps(2)
     real(R_) :: update_cloud_properties(2)
-    real(R_) :: k(2,2) ! Jacobian matrix
+    real(R_) :: k(3,2) ! Jacobian matrix
     real(R_) :: dx(2)
-    real(R_) :: refdiff_vec(2) ! difference vector of reflectances
+    real(R_) :: refdiff_vec(3) ! difference vector of reflectances
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
@@ -481,11 +492,12 @@ contains
 
   ! main routine of retrieval code
   !   input:
-  !     lut: look-up table (tau, cder -> ref1, ref2)
+  !     lut: look-up table (tau, cder -> ref1, ref2, ref3)
   !       (i, 1): tau  (Cloud Optical Thickness)
   !       (i, 2): cder (Cloud Droplet Effective Radius)
   !       (i, 3): reflectance1
   !       (i, 4): reflectance2
+  !       (i, 5): reflectance2
   !     obs_ref: array of observed reflectances
   !   output:
   !     tau: estimated cloud optical thickness
@@ -495,19 +507,20 @@ contains
     real(R_), intent(in)  :: obs_ref(:)
     real(R_), intent(out) :: tau, cder
     real(R_), intent(out) :: cost_res
-    real(R_) :: lut_refs1(size(lut, 1)), lut_refs2(size(lut, 1)) ! reflectances of lut
+    real(R_) :: lut_refs1(size(lut, 1)), lut_refs2(size(lut, 1))
+    real(R_) :: lut_refs3(size(lut, 1)) ! reflectances of lut
     real(R_) :: tau_arr(size(lut,1)), cder_arr(size(lut, 1)) ! tau and cder in lut
-    real(R_) :: est_ref(2) ! estimated reflectances
+    real(R_) :: est_ref(3) ! estimated reflectances
     real(R_) :: cps(2) ! cloud physical parameters
-    real(R_) :: k(2,2) ! an array of akima coefficients
+    real(R_) :: k(3,2) ! an array of akima coefficients
     real(R_) :: prev_cost = 100.0_R_
     real(R_) :: best_cost = 100.0_R_
     real(R_) :: best_cps(2) = (/0.0_R_, 0.0_R_/)
     integer :: i
 
     ! initialization
-    call separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
-    cps = estimate_initial_values(lut_refs1, lut_refs2, tau_arr, cder_arr, obs_ref)
+    call separate_lut(lut, lut_refs1, lut_refs2, lut_refs3, tau_arr, cder_arr)
+    cps = estimate_initial_values(lut_refs1, lut_refs2, lut_refs3, tau_arr, cder_arr, obs_ref)
 
     ! main loop of optimal estimation
     do i = 1, max_iter
@@ -518,12 +531,14 @@ contains
         write (*,*) "# estimated CDER: ", cps(2)
       end if
 
-      call estimate_refs(lut_refs1, lut_refs2, tau_arr, cder_arr, cps(1), cps(2), est_ref, k(:,:))
+      call estimate_refs(lut_refs1, lut_refs2, lut_refs3, tau_arr, cder_arr, cps(1), cps(2), est_ref, k(:,:))
       if (verbose_flag) then
         write (*,*) "# observed  REF1: ", obs_ref(1)
         write (*,*) "# observed  REF2: ", obs_ref(2)
+        write (*,*) "# observed  REF3: ", obs_ref(3)
         write (*,*) "# estimated REF1: ", est_ref(1)
         write (*,*) "# estimated REF2: ", est_ref(2)
+        write (*,*) "# estimated REF3: ", est_ref(3)
       end if
 
       cost_res = cost_func(obs_ref, est_ref)
