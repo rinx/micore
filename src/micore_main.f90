@@ -78,7 +78,7 @@ program micore
   end if
   lut(:, 3) = lut(:, 3) + surface_albedo
   lut(:, 4) = lut(:, 4) + surface_albedo
-  lut(:, 4) = lut(:, 5) + surface_albedo
+  lut(:, 5) = lut(:, 5) + surface_albedo
 
   if (verbose_flag) then
     write (*,*) "# Look-up table"
