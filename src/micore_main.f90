@@ -34,7 +34,7 @@ program micore
   real(R_) :: obs_ref(3)
   real(R_) :: tau, cder
   real(R_) :: cost
-  real(R4_) :: wrk(4)
+  real(R4_) :: wrk(5)
 
   ! get commandline arguments
   narg = 5
