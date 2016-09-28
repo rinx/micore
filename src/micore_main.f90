@@ -53,7 +53,7 @@ program micore
   end if
 
   ! read lut-file
-  inquire (iolength=irecl) (1.0_R4_, ivar=1, 4)
+  inquire (iolength=irecl) (1.0_R4_, ivar=1, 5)
   open (IUI, file=argv(1), access='direct', form='unformatted', status='old', recl=irecl)
 
   i = 1
