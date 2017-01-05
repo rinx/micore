@@ -502,8 +502,10 @@ contains
     real(R_) :: k(2,2) ! an array of akima coefficients
     real(R_) :: prev_cost = 100.0_R_
     real(R_) :: best_cost = 100.0_R_
+    integer  :: cost_diff_count = 0
+    integer  :: cost_diff_count_inv = 0
     real(R_) :: best_cps(2) = (/0.0_R_, 0.0_R_/)
-    integer :: i
+    integer  :: i
 
     ! initialization
     call separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
@@ -530,7 +532,23 @@ contains
       if (verbose_flag) then
         write (*,*) "# COST: ", cost_res
       end if
-      if (cost_res < threshold .or. abs(prev_cost - cost_res) < diff_thre) exit
+      if (cost_res < threshold) exit
+      if (prev_cost - cost_res >= 0 .and. prev_cost - cost_res < diff_thre) then
+        if (cost_diff_count >= 3) then
+          exit
+        else
+          cost_diff_count = cost_diff_count + 1
+        end if
+      else if (prev_cost - cost_res <= 0 .and. prev_cost - cost_res < diff_thre) then
+        if (cost_diff_count_inv >= 3) then
+          exit
+        else
+          cost_diff_count_inv = cost_diff_count_inv + 1
+        end if
+      else
+        cost_diff_count = 0
+        cost_diff_count_inv = 0
+      end if
       prev_cost = cost_res
 
       if (cost_res < best_cost) then
