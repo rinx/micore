@@ -103,7 +103,7 @@ from random-generated cloud properties like following:
 
 ![example2](example/example2.png)
 
-These scripts require 'gnuplot gem' and 'narray gem'.
+These scripts require [gnuplot gem](https://github.com/rdp/ruby_gnuplot) and [narray gem](https://github.com/masa16/narray).
 
 Tuning
 ---
