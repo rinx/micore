@@ -23,16 +23,20 @@
 require 'narray'
 require 'gnuplot'
 require 'open3'
+require 'optparse'
 
 MICORE_BIN = '../../src/micore'
 
+params = ARGV.getopts('', 'iterplot:')
+
 if ARGV.size < 5 then
   STDERR.puts <<heredoc
-Usage: ruby #{$0} input output albedo ref1 ref2
+Usage: ruby #{$0} [--iterplot] input output albedo ref1 ref2
   input:  lut filename
   output: output png filename
   albedo: surface albedo
   ref1, ref2: reflectances
+  [--iterplot]: make a plot of tau, cder, cost, ref1, ref2 for each iterate step
 heredoc
   exit
 end
@@ -43,6 +47,8 @@ outfilepath = ARGV[1]
 albedo = ARGV[2].to_f
 ref1   = ARGV[3].to_f
 ref2   = ARGV[4].to_f
+
+iterplotfilename = params['iterplot']
 
 if File.exist?(File.expand_path(inpfilepath)) then
   datafile = open(File.expand_path(inpfilepath), 'r+b')
@@ -61,6 +67,12 @@ micore_stdout, micore_status = Open3.capture2("#{MICORE_BIN} #{inpfilepath} #{al
 estimated_tau  = nil
 estimated_cder = nil
 estimated_cost = nil
+niter = nil
+iter_taus = []
+iter_cders = []
+iter_costs = []
+iter_ref1s = []
+iter_ref2s = []
 
 micore_stdout.each_line do |line|
   if line =~ /^\s*TAU:/ then
@@ -69,6 +81,18 @@ micore_stdout.each_line do |line|
     estimated_cder = line.gsub(/^\s*CDER:\s*/,'').to_f
   elsif line =~ /^\s*COST:/ then
     estimated_cost = line.gsub(/^\s*COST:\s*/,'').to_f
+  elsif line =~ /^\s*#\s*iterate step:/ then
+    niter = line.gsub(/^\s*#\s*iterate step:\s*/,'').to_i
+  elsif line =~ /^\s*#\s*estimated TAU:/ then
+    iter_taus.push(line.gsub(/^\s*#\s*estimated TAU:\s*/,'').to_f)
+  elsif line =~ /^\s*#\s*estimated CDER:/ then
+    iter_cders.push(line.gsub(/^\s*#\s*estimated CDER:\s*/,'').to_f)
+  elsif line =~ /^\s*#\s*COST:/ then
+    iter_costs.push(line.gsub(/^\s*#\s*COST:\s*/,'').to_f)
+  elsif line =~ /^\s*#\s*estimated REF1:/ then
+    iter_ref1s.push(line.gsub(/^\s*#\s*estimated REF1:\s*/,'').to_f)
+  elsif line =~ /^\s*#\s*estimated REF2:/ then
+    iter_ref2s.push(line.gsub(/^\s*#\s*estimated REF2:\s*/,'').to_f)
   end
 end
 
@@ -180,4 +204,57 @@ Gnuplot.open do |gp|
   end
 end
 
+
+if iterplotfilename
+
+  combs = [
+    ['tau', iter_taus],
+    ['cder', iter_cders],
+    ['cost', iter_costs],
+    ['ref1', iter_ref1s],
+    ['ref2', iter_ref2s],
+  ]
+
+  combs.each do |varname, itervals|
+    Gnuplot.open do |gp|
+      Gnuplot::Plot.new(gp) do |plot|
+        case iterplotfilename
+        when /^none$/
+          plot.terminal 'x11'
+        when /\.tex$/
+          plot.terminal "tikz"
+          plot.output (File.expand_path(iterplotfilename.gsub(/\.tex$/, ".#{varname}.tex")))
+        when /\.pdf$/
+          plot.terminal "pdf"
+          plot.output (File.expand_path(iterplotfilename.gsub(/\.pdf$/, ".#{varname}.pdf")))
+        when /\.png$/
+          plot.terminal "pngcairo"
+          plot.output (File.expand_path(iterplotfilename.gsub(/\.png$/, ".#{varname}.png")))
+        else
+          STDERR.puts "Error: unknown filetype"
+          exit
+        end
+
+        plot.title "#{varname}"
+        plot.xlabel "iterate step"
+        plot.ylabel "#{varname}"
+
+        plot.xrange "[1:#{niter}]"
+        plot.yrange "[0.0:#{itervals.max + 0.1 * itervals.max}]"
+
+        if varname == 'cost'
+          plot.yrange "[#{0.1 * itervals.min}:#{10.0 * itervals.max}]"
+          plot.set 'logscale y'
+        end
+
+        plot.set "key off"
+        plot.set "size square"
+
+        plot.data << Gnuplot::DataSet.new([[*1..niter], itervals]) do |ds|
+          ds.with = "lines"
+        end
+      end
+    end
+  end
+end
 
