@@ -121,9 +121,9 @@ There are some technical parameters in the header of `micore_core.f90`.
   integer, parameter :: max_iter = 9999
   ! max and min of tau and cder
   real(R_), parameter :: tau_max  = 150.0_R_
-  real(R_), parameter :: tau_min  = 0.3_R_
-  real(R_), parameter :: cder_max = 35.0_R_
-  real(R_), parameter :: cder_min = 1.0_R_
+  real(R_), parameter :: tau_min  = 0.0_R_
+  real(R_), parameter :: cder_max = 55.0_R_
+  real(R_), parameter :: cder_min = 0.0_R_
 ```
 
 You can modify these parameters as you like before compiling.

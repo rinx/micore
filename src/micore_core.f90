@@ -40,9 +40,9 @@ module micore_core
   integer, parameter :: max_iter = 9999
   ! max and min of tau and cder
   real(R_), parameter :: tau_max  = 150.0_R_
-  real(R_), parameter :: tau_min  = 0.3_R_
-  real(R_), parameter :: cder_max = 35.0_R_
-  real(R_), parameter :: cder_min = 1.0_R_
+  real(R_), parameter :: tau_min  = 0.0_R_
+  real(R_), parameter :: cder_max = 55.0_R_
+  real(R_), parameter :: cder_min = 0.0_R_
 
 contains
   ! get commandline arguments
@@ -470,17 +470,19 @@ contains
   end function cost_func
 
   ! update cloud properties
-  function update_cloud_properties(obs_ref, est_ref, cps, k)
+  function update_cloud_properties(obs_ref, est_ref, cps, k, gam)
     real(R_) :: obs_ref(:), est_ref(:)
     real(R_) :: cps(2)
     real(R_) :: update_cloud_properties(2)
     real(R_) :: k(3,2) ! Jacobian matrix
     real(R_) :: dx(2)
     real(R_) :: refdiff_vec(3) ! difference vector of reflectances
+    real(R_) :: e(2,2) = reshape((/1,0,0,1/), (/2,2/))
+    real(R_) :: gam
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
-    dx(:) = solve_1Dlinalg_choles(matmul(transpose(k(:,:)), k(:,:)), &
+    dx(:) = solve_1Dlinalg_choles(matmul(transpose(k(:,:)), k(:,:)) + e(:,:) * gam, &
       matmul(transpose(k(:,:)), refdiff_vec(:)))
 
     update_cloud_properties(1) = inv_nonlin_conv_tau(nonlin_conv_tau(cps(1)), dx(1))
@@ -515,6 +517,7 @@ contains
     real(R_) :: k(3,2) ! an array of akima coefficients
     real(R_) :: prev_cost = 100.0_R_
     real(R_) :: best_cost = 100.0_R_
+    real(R_) :: gam = 0.01_R_ ! fudge factor
     integer  :: cost_diff_count = 0
     integer  :: cost_diff_count_inv = 0
     real(R_) :: best_cps(2) = (/0.0_R_, 0.0_R_/)
@@ -548,30 +551,40 @@ contains
         write (*,*) "# COST: ", cost_res
       end if
       if (cost_res < threshold) exit
-      if (prev_cost - cost_res >= 0 .and. prev_cost - cost_res < diff_thre) then
-        if (cost_diff_count >= 3) then
-          exit
+      if (prev_cost - cost_res >= 0) then
+        if (prev_cost - cost_res < diff_thre) then
+          if (cost_diff_count >= 3) then
+            exit
+          else
+            cost_diff_count = cost_diff_count + 1
+          end if
         else
-          cost_diff_count = cost_diff_count + 1
+          cost_diff_count = 0
+          cost_diff_count_inv = 0
         end if
-      else if (prev_cost - cost_res <= 0 .and. prev_cost - cost_res < diff_thre) then
-        if (cost_diff_count_inv >= 3) then
-          exit
-        else
-          cost_diff_count_inv = cost_diff_count_inv + 1
-        end if
+        gam = gam * 0.1_R_
+
+        if (cost_res < best_cost) then
+          best_cost = cost_res
+          best_cps(:) = cps(:)
+        endif
+
+        cps = update_cloud_properties(obs_ref, est_ref, cps, k(:,:), gam)
       else
-        cost_diff_count = 0
-        cost_diff_count_inv = 0
+        if (prev_cost - cost_res < diff_thre) then
+          if (cost_diff_count_inv >= 3) then
+            exit
+          else
+            cost_diff_count_inv = cost_diff_count_inv + 1
+          end if
+        else
+          cost_diff_count = 0
+          cost_diff_count_inv = 0
+        end if
+        gam = gam * 10.0_R_
       end if
+
       prev_cost = cost_res
-
-      if (cost_res < best_cost) then
-        best_cost = cost_res
-        best_cps(:) = cps(:)
-      endif
-
-      cps = update_cloud_properties(obs_ref, est_ref, cps, k(:,:))
     end do
 
     if (cost_res < best_cost) then
