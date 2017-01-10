@@ -29,6 +29,9 @@ like following:
 
     $ ./micore ../example/lut_860_2130.bin 0.0 0.553 0.343
 
+where `reflectance` 1 and 2 are the observed reflectances.
+`surface_albedo` is a value for shift LUT.
+
 If you enable the verbose flag (please read the part of tuning),
 the output is composed by:
 

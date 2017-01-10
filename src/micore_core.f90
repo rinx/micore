@@ -11,6 +11,8 @@
 !
 ! ChangeLog
 !   20151127 : First Version
+!   20160511 : Revise akima interpolation
+!   20170109 : Replace Gauss-Newton method with Levenberg-Marquardt method
 !
 
 
