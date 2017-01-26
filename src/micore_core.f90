@@ -349,6 +349,11 @@ contains
     real(R_) :: estimate_initial_values(2)
     integer :: minind
 
+    lut_refs1(:) = lut_refs1(:) / maxval(lut_refs1(:))
+    lut_refs2(:) = lut_refs2(:) / maxval(lut_refs2(:))
+    obs_ref(1) = obs_ref(1) / maxval(lut_refs1(:))
+    obs_ref(2) = obs_ref(2) / maxval(lut_refs2(:))
+
     minind = minloc((lut_refs1 - obs_ref(1))**2 + (lut_refs2 - obs_ref(2))**2, 1)
 
     estimate_initial_values(1) = tau_arr(minind)
