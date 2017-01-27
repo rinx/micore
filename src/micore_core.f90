@@ -456,21 +456,26 @@ contains
   end subroutine estimate_refs
 
   ! cost function J
-  !   J = (R_obs1 - R_est1)^2 + (R_obs2 - R_est2)^2
-  function cost_func(obs_ref, est_ref)
+  !   J = (R_obs1 - R_est1 R_obs2 - R_est2) S_e (R_obs1 - R_est1 R_obs2 - R_est2)
+  function cost_func(obs_ref, est_ref, s)
     real(R_) :: obs_ref(:)
     real(R_) :: est_ref(:)
+    real(R_) :: s(2,2) ! inverse of error covariance matrix
+    real(R_) :: refdiff_vec(2) ! difference vector of reflectances
     real(R_) :: cost_func
 
-    cost_func = (obs_ref(1) - est_ref(1))**2 + (obs_ref(2) - est_ref(2))**2
+    refdiff_vec(:) = obs_ref(:) - est_ref(:)
+
+    cost_func = dot_product(matmul(refdiff_vec(:), s(:,:)), refdiff_vec(:))
   end function cost_func
 
   ! update cloud properties
-  function update_cloud_properties(obs_ref, est_ref, cps, k, gam)
+  function update_cloud_properties(obs_ref, est_ref, cps, k, s, gam)
     real(R_) :: obs_ref(2), est_ref(2)
     real(R_) :: cps(2)
     real(R_) :: update_cloud_properties(2)
     real(R_) :: k(2,2) ! Jacobian matrix
+    real(R_) :: s(2,2) ! inverse of error covariance matrix
     real(R_) :: dx(2)
     real(R_) :: refdiff_vec(2) ! difference vector of reflectances
     real(R_) :: e(2,2) = reshape((/1,0,0,1/), (/2,2/))
@@ -478,8 +483,8 @@ contains
 
     refdiff_vec(:) = obs_ref(:) - est_ref(:)
 
-    dx(:) = solve_1Dlinalg_choles(matmul(transpose(k(:,:)), k(:,:)) + e(:,:) * gam, &
-      matmul(transpose(k(:,:)), refdiff_vec(:)))
+    dx(:) = solve_1Dlinalg_choles(matmul(matmul(transpose(k(:,:)), s(:,:)), k(:,:)) + e(:,:) * gam, &
+      matmul(matmul(transpose(k(:,:)), s(:,:)), refdiff_vec(:)))
 
     update_cloud_properties(1) = inv_nonlin_conv_tau(nonlin_conv_tau(cps(1)), dx(1))
     update_cloud_properties(2) = inv_nonlin_conv_cder(nonlin_conv_cder(cps(2)), dx(2))
@@ -509,6 +514,8 @@ contains
     real(R_) :: est_ref(2) ! estimated reflectances
     real(R_) :: cps(2) ! cloud physical parameters
     real(R_) :: k(2,2) ! an array of akima coefficients
+    real(R_) :: s(2,2) ! inverse of error covariance matrix
+    real(R_) :: e(2,2) = reshape((/1,0,0,1/), (/2,2/))
     real(R_) :: prev_cost = 100.0_R_
     real(R_) :: best_cost = 100.0_R_
     real(R_) :: gam = 0.01_R_ ! fudge factor
@@ -520,6 +527,9 @@ contains
     ! initialization
     call separate_lut(lut, lut_refs1, lut_refs2, tau_arr, cder_arr)
     cps = estimate_initial_values(lut_refs1, lut_refs2, tau_arr, cder_arr, obs_ref)
+
+    ! temporarily, error covariance matrix is unit.
+    s(:,:) = e(:,:)
 
     ! main loop of optimal estimation
     do i = 1, max_iter
@@ -538,7 +548,7 @@ contains
         write (*,*) "# estimated REF2: ", est_ref(2)
       end if
 
-      cost_res = cost_func(obs_ref, est_ref)
+      cost_res = cost_func(obs_ref, est_ref, s(:,:))
       if (verbose_flag) then
         write (*,*) "# COST: ", cost_res
       end if
@@ -561,7 +571,7 @@ contains
           best_cps(:) = cps(:)
         endif
 
-        cps = update_cloud_properties(obs_ref, est_ref, cps, k(:,:), gam)
+        cps = update_cloud_properties(obs_ref, est_ref, cps, k(:,:), s(:,:), gam)
       else
         if (prev_cost - cost_res < diff_thre) then
           if (cost_diff_count_inv >= 3) then
