@@ -100,12 +100,6 @@ It makes a plot like following:
 
 ![example](example/example.png)
 
-`micore_tester.rb` makes a 2D histogram which represents
-differences between true and estimated cloud properties
-from random-generated cloud properties like following:
-
-![example2](example/example2.png)
-
 These scripts require [gnuplot gem](https://github.com/rdp/ruby_gnuplot) and [narray gem](https://github.com/masa16/narray).
 
 Tuning
